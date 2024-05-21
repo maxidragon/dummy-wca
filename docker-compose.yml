@@ -1,0 +1,11 @@
+version: "3.3"
+
+services:
+  dummy_wca:
+    image: maxidragon/dummy-wca:latest
+    container_name: dummy-wca
+    network_mode: host
+    build:
+      dockerfile: Dockerfile
+      context: ./
+    restart: unless-stopped
