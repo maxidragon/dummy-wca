@@ -36,7 +36,16 @@ pub async fn get_token_handler(
     return Ok(Json(json!({"access_token": "example-access-token"})));
 }
 
-pub async fn get_me_handler() -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+pub async fn get_me_handler(
+    bearer_token: TypedHeader<headers::Authorization<Bearer>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token_str = bearer_token.token();
+    if token_str != "example-access-token" {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"status": "error","message": "Unauthorized"})),
+        ))
+    }
     let file_path = "data/me.json";
     match read_json_file(file_path) {
         Ok(data) => {
