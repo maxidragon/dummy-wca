@@ -32,4 +32,6 @@ Redirects to the redirect URL with the `code` query parameter.
 
 Returns an access token (`example-access-token`) that can be used to authenticate requests.
 
+### `GET /api/v0/records`
 
+Returns a list of records.

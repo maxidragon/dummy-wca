@@ -135,3 +135,18 @@ pub async fn get_wcif_handler(
         }
     }
 }
+
+pub async fn get_records_handler() -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let file_path = "data/records.json";
+    match read_json_file(file_path) {
+        Ok(data) => {
+            return Ok(Json(data));
+        }
+        Err(_) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"status": "error","message": "Something went wrong"})),
+            ));
+        }
+    }
+}
