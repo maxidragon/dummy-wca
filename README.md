@@ -35,3 +35,34 @@ Returns an access token (`example-access-token`) that can be used to authenticat
 ### `GET /api/v0/records`
 
 Returns a list of records.
+
+## Running
+
+### Directly with cargo
+
+Ensure you have Cargo installed. Then run the following command:
+
+```bash
+cargo run
+```
+
+## With docker
+
+Ensure you have Docker installed. Then run the following command:
+
+```bash
+docker run -p 3000:3000 maxidragon/dummy-wca
+```
+
+## Adding to docker-compose
+
+If you have dev docker compose file you can add the following service:
+
+```yaml
+dummy_wca:
+  container_name: dummy-wca
+  restart: unless-stopped
+  image: maxidragon/dummy-wca:latest
+  ports:
+    - "3000:3000"
+```
