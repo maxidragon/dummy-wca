@@ -1,0 +1,12 @@
+[
+  {
+    "id": "DebicaCubingSummer2024",
+    "name": "Dębica Cubing Summer 2024",
+    "url": "http://localhost:3000/competitions/DebicaCubingSummer2024",
+    "registration_open": "2024-07-03T18:00:00.000Z",
+    "start_date": "2024-08-24",
+    "end_date": "2024-08-25",
+    "country_iso2": "PL",
+    "class": "competition"
+  }
+]

@@ -1,0 +1,27 @@
+{
+    "me": {
+        "id": 235575,
+        "created_at": "2021-06-26T19:28:45.000Z",
+        "updated_at": "2024-09-17T08:28:46.000Z",
+        "name": "Maksymilian Kulas",
+        "wca_id": "2021KULA02",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "https://www.worldcubeassociation.org/persons/2021KULA02",
+        "country": {
+            "id": "Poland",
+            "name": "Poland",
+            "continentId": "_Europe",
+            "iso2": "PL"
+        },
+        "delegate_status": null,
+        "class": "user",
+        "teams": [],
+        "avatar": {
+            "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2021KULA02/1723705115.jpg",
+            "pending_url": "https://assets.worldcubeassociation.org/assets/6b18da4/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
+            "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2021KULA02/1723705115_thumb.jpg",
+            "is_default": false
+        }
+    }
+}
