@@ -1,5 +1,3 @@
-version: "3.3"
-
 services:
   dummy_wca:
     image: maxidragon/dummy-wca:latest

@@ -1,11 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-pub struct WcifRequestOptions {
-    pub id: String,
-}
-
-#[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct OauthRequestOptions {
     pub redirect_uri: String,
     pub scope: String,
@@ -14,6 +10,7 @@ pub struct OauthRequestOptions {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct OauthTokenRequestOptions {
     pub code: String,
     pub client_id: String,
@@ -23,6 +20,6 @@ pub struct OauthTokenRequestOptions {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct CompetitionsListOptions {
-    pub managed_by_me: bool,
+pub struct SearchUsersOptions {
+    pub q: String,
 }

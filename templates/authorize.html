@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Dummy WCA - authorize</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <h1>Choose account</h1>
+        <div id="redirect_uri" style="display: none;">
+            {{ redirect_uri }}
+        </div>
+        <ul>
+            <li>Maksymilian Gala (2022GALA01) - Organizer of SLSFinal2024</li>
+            <li>Jonatan Kłosko (2013KOSK01) - WST Member</li>
+            <li>Maksymilian Kulas (2021KULA02) - Organizer of DebicaCubingSummer2024</li>
+        </ul>
+        <button onclick="login('2022GALA01')">Maksymilian Gala (2022GALA01)</button>
+        <button onclick="login('2013KOSK01')">Jonatan Kłosko (2013KOSK01)</button>
+        <button onclick="login('2021KULA02')">Maksymilian Kulas (2021KULA02)</button>
+        <script>
+            const redirect_uri = document.getElementById('redirect_uri').innerText;
+            console.log(redirect_uri);
+            function login(wcaId) {
+                window.location.href = `${redirect_uri.trim()}?code=code-${wcaId}`;
+            }
+        </script>
+    </body>
+</html>
