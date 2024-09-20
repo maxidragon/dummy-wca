@@ -14,7 +14,7 @@ Returns a list of manageable competitions. Requires the `Authorization` header t
 
 Returns the WCIF of a competition.
 
-Requires the `Authorization` header to be set to `Bearer example-access-token`.
+Requires the `Authorization` header to be set to `Bearer <token>`.
 
 ### `GET /api/v0/competitions/:id/wcif/public`
 
@@ -26,15 +26,23 @@ Returns the current user information. Requires the `Authorization` header to be 
 
 ### `GET /oauth/authorize`
 
-Redirects to the redirect URL with the `code` query parameter.
+Redirects to the page that asks to choose the user.
 
 ### `POST /oauth/token`
 
-Returns an access token (`example-access-token`) that can be used to authenticate requests.
+Returns an access token that can be used to authenticate requests.
 
 ### `GET /api/v0/records`
 
 Returns a list of records.
+
+### `GET /api/v0/persons?q=query`
+
+Returns a list of persons that match the query.
+
+### `GET /api/v0/users/:id`
+
+Returns the user with the given WCA ID.
 
 ## Running
 
