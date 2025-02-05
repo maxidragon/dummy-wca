@@ -448,230 +448,495 @@
             }
         },
         {
-
             "person": {
-                  "name": "Maksymilian Gala",
-                  "wca_id": "2022GALA01",
-                  "avatar": {
-                        "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2022GALA01/1707126780.png",
-                        "pending_url": "https://assets.worldcubeassociation.org/assets/53451f9/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
-                        "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2022GALA01/1707126780_thumb.png",
-                        "is_default": false
-                  },
-                  "gender": "m",
-                  "country_iso2": "PL",
-                  "url": "https://www.worldcubeassociation.org/persons/2022GALA01",
-                  "country": {
-                        "id": "Poland",
-                        "name": "Poland",
-                        "continentId": "_Europe",
-                        "iso2": "PL"
-                  },
-                  "delegate_status": null,
-                  "class": "person",
-                  "teams": [],
-                  "id": "2022GALA01"
+                "name": "Maksymilian Gala",
+                "wca_id": "2022GALA01",
+                "avatar": {
+                    "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2022GALA01/1707126780.png",
+                    "pending_url": "https://assets.worldcubeassociation.org/assets/53451f9/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
+                    "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2022GALA01/1707126780_thumb.png",
+                    "is_default": false
+                },
+                "gender": "m",
+                "country_iso2": "PL",
+                "url": "https://www.worldcubeassociation.org/persons/2022GALA01",
+                "country": {
+                    "id": "Poland",
+                    "name": "Poland",
+                    "continentId": "_Europe",
+                    "iso2": "PL"
+                },
+                "delegate_status": null,
+                "class": "person",
+                "teams": [],
+                "id": "2022GALA01"
             },
             "competition_count": 35,
             "personal_records": {
-                  "222": {
-                        "single": {
-                              "best": 229,
-                              "world_rank": 9310,
-                              "continent_rank": 3210,
-                              "country_rank": 390
-                        },
-                        "average": {
-                              "best": 372,
-                              "world_rank": 7723,
-                              "continent_rank": 2534,
-                              "country_rank": 341
-                        }
-                  },
-                  "333": {
-                        "single": {
-                              "best": 964,
-                              "world_rank": 13224,
-                              "continent_rank": 3543,
-                              "country_rank": 448
-                        },
-                        "average": {
-                              "best": 1074,
-                              "world_rank": 8450,
-                              "continent_rank": 2278,
-                              "country_rank": 299
-                        }
-                  },
-                  "444": {
-                        "single": {
-                              "best": 3595,
-                              "world_rank": 4249,
-                              "continent_rank": 1228,
-                              "country_rank": 164
-                        },
-                        "average": {
-                              "best": 4323,
-                              "world_rank": 5209,
-                              "continent_rank": 1474,
-                              "country_rank": 191
-                        }
-                  },
-                  "555": {
-                        "single": {
-                              "best": 9361,
-                              "world_rank": 9094,
-                              "continent_rank": 2704,
-                              "country_rank": 294
-                        },
-                        "average": {
-                              "best": 10612,
-                              "world_rank": 9633,
-                              "continent_rank": 2863,
-                              "country_rank": 313
-                        }
-                  },
-                  "666": {
-                        "single": {
-                              "best": 20488,
-                              "world_rank": 6733,
-                              "continent_rank": 2065,
-                              "country_rank": 229
-                        },
-                        "average": {
-                              "best": 21546,
-                              "world_rank": 6338,
-                              "continent_rank": 1939,
-                              "country_rank": 218
-                        }
-                  },
-                  "777": {
-                        "single": {
-                              "best": 45955,
-                              "world_rank": 9304,
-                              "continent_rank": 3045,
-                              "country_rank": 352
-                        }
-                  },
-                  "333bf": {
-                        "single": {
-                              "best": 10798,
-                              "world_rank": 2717,
-                              "continent_rank": 918,
-                              "country_rank": 120
-                        }
-                  },
-                  "333fm": {
-                        "single": {
-                              "best": 37,
-                              "world_rank": 3541,
-                              "continent_rank": 1488,
-                              "country_rank": 166
-                        },
-                        "average": {
-                              "best": 4700,
-                              "world_rank": 3497,
-                              "continent_rank": 1325,
-                              "country_rank": 148
-                        }
-                  },
-                  "333oh": {
-                        "single": {
-                              "best": 1583,
-                              "world_rank": 5329,
-                              "continent_rank": 1466,
-                              "country_rank": 165
-                        },
-                        "average": {
-                              "best": 1902,
-                              "world_rank": 4587,
-                              "continent_rank": 1237,
-                              "country_rank": 143
-                        }
-                  },
-                  "clock": {
-                        "single": {
-                              "best": 443,
-                              "world_rank": 500,
-                              "continent_rank": 183,
-                              "country_rank": 53
-                        },
-                        "average": {
-                              "best": 550,
-                              "world_rank": 454,
-                              "continent_rank": 172,
-                              "country_rank": 49
-                        }
-                  },
-                  "minx": {
-                        "single": {
-                              "best": 5191,
-                              "world_rank": 1326,
-                              "continent_rank": 434,
-                              "country_rank": 72
-                        },
-                        "average": {
-                              "best": 5907,
-                              "world_rank": 1357,
-                              "continent_rank": 447,
-                              "country_rank": 70
-                        }
-                  },
-                  "pyram": {
-                        "single": {
-                              "best": 411,
-                              "world_rank": 8008,
-                              "continent_rank": 2864,
-                              "country_rank": 420
-                        },
-                        "average": {
-                              "best": 798,
-                              "world_rank": 13607,
-                              "continent_rank": 4617,
-                              "country_rank": 685
-                        }
-                  },
-                  "skewb": {
-                        "single": {
-                              "best": 165,
-                              "world_rank": 267,
-                              "continent_rank": 107,
-                              "country_rank": 32
-                        },
-                        "average": {
-                              "best": 382,
-                              "world_rank": 690,
-                              "continent_rank": 255,
-                              "country_rank": 53
-                        }
-                  },
-                  "sq1": {
-                        "single": {
-                              "best": 1455,
-                              "world_rank": 2880,
-                              "continent_rank": 942,
-                              "country_rank": 127
-                        },
-                        "average": {
-                              "best": 2354,
-                              "world_rank": 4118,
-                              "continent_rank": 1346,
-                              "country_rank": 183
-                        }
-                  }
+                "222": {
+                    "single": {
+                        "best": 229,
+                        "world_rank": 9310,
+                        "continent_rank": 3210,
+                        "country_rank": 390
+                    },
+                    "average": {
+                        "best": 372,
+                        "world_rank": 7723,
+                        "continent_rank": 2534,
+                        "country_rank": 341
+                    }
+                },
+                "333": {
+                    "single": {
+                        "best": 964,
+                        "world_rank": 13224,
+                        "continent_rank": 3543,
+                        "country_rank": 448
+                    },
+                    "average": {
+                        "best": 1074,
+                        "world_rank": 8450,
+                        "continent_rank": 2278,
+                        "country_rank": 299
+                    }
+                },
+                "444": {
+                    "single": {
+                        "best": 3595,
+                        "world_rank": 4249,
+                        "continent_rank": 1228,
+                        "country_rank": 164
+                    },
+                    "average": {
+                        "best": 4323,
+                        "world_rank": 5209,
+                        "continent_rank": 1474,
+                        "country_rank": 191
+                    }
+                },
+                "555": {
+                    "single": {
+                        "best": 9361,
+                        "world_rank": 9094,
+                        "continent_rank": 2704,
+                        "country_rank": 294
+                    },
+                    "average": {
+                        "best": 10612,
+                        "world_rank": 9633,
+                        "continent_rank": 2863,
+                        "country_rank": 313
+                    }
+                },
+                "666": {
+                    "single": {
+                        "best": 20488,
+                        "world_rank": 6733,
+                        "continent_rank": 2065,
+                        "country_rank": 229
+                    },
+                    "average": {
+                        "best": 21546,
+                        "world_rank": 6338,
+                        "continent_rank": 1939,
+                        "country_rank": 218
+                    }
+                },
+                "777": {
+                    "single": {
+                        "best": 45955,
+                        "world_rank": 9304,
+                        "continent_rank": 3045,
+                        "country_rank": 352
+                    }
+                },
+                "333bf": {
+                    "single": {
+                        "best": 10798,
+                        "world_rank": 2717,
+                        "continent_rank": 918,
+                        "country_rank": 120
+                    }
+                },
+                "333fm": {
+                    "single": {
+                        "best": 37,
+                        "world_rank": 3541,
+                        "continent_rank": 1488,
+                        "country_rank": 166
+                    },
+                    "average": {
+                        "best": 4700,
+                        "world_rank": 3497,
+                        "continent_rank": 1325,
+                        "country_rank": 148
+                    }
+                },
+                "333oh": {
+                    "single": {
+                        "best": 1583,
+                        "world_rank": 5329,
+                        "continent_rank": 1466,
+                        "country_rank": 165
+                    },
+                    "average": {
+                        "best": 1902,
+                        "world_rank": 4587,
+                        "continent_rank": 1237,
+                        "country_rank": 143
+                    }
+                },
+                "clock": {
+                    "single": {
+                        "best": 443,
+                        "world_rank": 500,
+                        "continent_rank": 183,
+                        "country_rank": 53
+                    },
+                    "average": {
+                        "best": 550,
+                        "world_rank": 454,
+                        "continent_rank": 172,
+                        "country_rank": 49
+                    }
+                },
+                "minx": {
+                    "single": {
+                        "best": 5191,
+                        "world_rank": 1326,
+                        "continent_rank": 434,
+                        "country_rank": 72
+                    },
+                    "average": {
+                        "best": 5907,
+                        "world_rank": 1357,
+                        "continent_rank": 447,
+                        "country_rank": 70
+                    }
+                },
+                "pyram": {
+                    "single": {
+                        "best": 411,
+                        "world_rank": 8008,
+                        "continent_rank": 2864,
+                        "country_rank": 420
+                    },
+                    "average": {
+                        "best": 798,
+                        "world_rank": 13607,
+                        "continent_rank": 4617,
+                        "country_rank": 685
+                    }
+                },
+                "skewb": {
+                    "single": {
+                        "best": 165,
+                        "world_rank": 267,
+                        "continent_rank": 107,
+                        "country_rank": 32
+                    },
+                    "average": {
+                        "best": 382,
+                        "world_rank": 690,
+                        "continent_rank": 255,
+                        "country_rank": 53
+                    }
+                },
+                "sq1": {
+                    "single": {
+                        "best": 1455,
+                        "world_rank": 2880,
+                        "continent_rank": 942,
+                        "country_rank": 127
+                    },
+                    "average": {
+                        "best": 2354,
+                        "world_rank": 4118,
+                        "continent_rank": 1346,
+                        "country_rank": 183
+                    }
+                }
             },
             "medals": {
-                  "gold": 0,
-                  "silver": 1,
-                  "bronze": 5,
-                  "total": 6
+                "gold": 0,
+                "silver": 1,
+                "bronze": 5,
+                "total": 6
             },
             "records": {
-                  "national": 0,
-                  "continental": 0,
-                  "world": 0,
-                  "total": 0
+                "national": 0,
+                "continental": 0,
+                "world": 0,
+                "total": 0
             }
-    
-      }
+        },
+        {
+            "person": {
+                "name": "Przemysław Rogalski",
+                "gender": "m",
+                "url": "https://www.worldcubeassociation.org/persons/2013ROGA02",
+                "country": {
+                    "id": "Poland",
+                    "name": "Poland",
+                    "continentId": "_Europe",
+                    "iso2": "PL"
+                },
+                "delegate_status": "regional_delegate",
+                "email": "progalski@worldcubeassociation.org",
+                "location": null,
+                "region_id": 16,
+                "class": "person",
+                "teams": [],
+                "avatar": {
+                    "id": 67207,
+                    "status": "approved",
+                    "thumbnail_crop_x": 647,
+                    "thumbnail_crop_y": 153,
+                    "thumbnail_crop_w": 1708,
+                    "thumbnail_crop_h": 1708,
+                    "url": "https://avatars.worldcubeassociation.org/onqi373vm311kquczwg32165d762",
+                    "thumb_url": "https://avatars.worldcubeassociation.org/7hzfmacdyrsjz7aqw5luc3342vmc",
+                    "is_default": false,
+                    "can_edit_thumbnail": true
+                },
+                "wca_id": "2013ROGA02",
+                "country_iso2": "PL",
+                "id": "2013ROGA02"
+            },
+            "competition_count": 306,
+            "personal_records": {
+                "222": {
+                    "single": {
+                        "best": 72,
+                        "world_rank": 167,
+                        "continent_rank": 70,
+                        "country_rank": 25
+                    },
+                    "average": {
+                        "best": 229,
+                        "world_rank": 1123,
+                        "continent_rank": 415,
+                        "country_rank": 62
+                    }
+                },
+                "333": {
+                    "single": {
+                        "best": 738,
+                        "world_rank": 3674,
+                        "continent_rank": 1079,
+                        "country_rank": 141
+                    },
+                    "average": {
+                        "best": 1018,
+                        "world_rank": 6911,
+                        "continent_rank": 1864,
+                        "country_rank": 240
+                    }
+                },
+                "333bf": {
+                    "single": {
+                        "best": 7971,
+                        "world_rank": 1861,
+                        "continent_rank": 656,
+                        "country_rank": 88
+                    },
+                    "average": {
+                        "best": 12007,
+                        "world_rank": 1535,
+                        "continent_rank": 587,
+                        "country_rank": 73
+                    }
+                },
+                "333fm": {
+                    "single": {
+                        "best": 20,
+                        "world_rank": 58,
+                        "continent_rank": 28,
+                        "country_rank": 9
+                    },
+                    "average": {
+                        "best": 2533,
+                        "world_rank": 149,
+                        "continent_rank": 66,
+                        "country_rank": 10
+                    }
+                },
+                "333ft": {
+                    "single": {
+                        "best": 5297,
+                        "world_rank": 415,
+                        "continent_rank": 138,
+                        "country_rank": 20
+                    },
+                    "average": {
+                        "best": 7421,
+                        "world_rank": 532,
+                        "continent_rank": 173,
+                        "country_rank": 22
+                    }
+                },
+                "333mbf": {
+                    "single": {
+                        "best": 910296200,
+                        "world_rank": 780,
+                        "continent_rank": 329,
+                        "country_rank": 41
+                    }
+                },
+                "333oh": {
+                    "single": {
+                        "best": 1213,
+                        "world_rank": 1687,
+                        "continent_rank": 479,
+                        "country_rank": 63
+                    },
+                    "average": {
+                        "best": 1602,
+                        "world_rank": 2138,
+                        "continent_rank": 591,
+                        "country_rank": 73
+                    }
+                },
+                "444": {
+                    "single": {
+                        "best": 3166,
+                        "world_rank": 2263,
+                        "continent_rank": 694,
+                        "country_rank": 106
+                    },
+                    "average": {
+                        "best": 3839,
+                        "world_rank": 2954,
+                        "continent_rank": 864,
+                        "country_rank": 118
+                    }
+                },
+                "555": {
+                    "single": {
+                        "best": 6177,
+                        "world_rank": 1753,
+                        "continent_rank": 527,
+                        "country_rank": 74
+                    },
+                    "average": {
+                        "best": 7731,
+                        "world_rank": 3256,
+                        "continent_rank": 946,
+                        "country_rank": 120
+                    }
+                },
+                "666": {
+                    "single": {
+                        "best": 14322,
+                        "world_rank": 2747,
+                        "continent_rank": 828,
+                        "country_rank": 111
+                    },
+                    "average": {
+                        "best": 15291,
+                        "world_rank": 2704,
+                        "continent_rank": 816,
+                        "country_rank": 108
+                    }
+                },
+                "777": {
+                    "single": {
+                        "best": 22896,
+                        "world_rank": 2779,
+                        "continent_rank": 828,
+                        "country_rank": 104
+                    },
+                    "average": {
+                        "best": 24440,
+                        "world_rank": 2809,
+                        "continent_rank": 842,
+                        "country_rank": 109
+                    }
+                },
+                "clock": {
+                    "single": {
+                        "best": 369,
+                        "world_rank": 315,
+                        "continent_rank": 114,
+                        "country_rank": 30
+                    },
+                    "average": {
+                        "best": 473,
+                        "world_rank": 315,
+                        "continent_rank": 115,
+                        "country_rank": 33
+                    }
+                },
+                "minx": {
+                    "single": {
+                        "best": 4753,
+                        "world_rank": 985,
+                        "continent_rank": 327,
+                        "country_rank": 54
+                    },
+                    "average": {
+                        "best": 5185,
+                        "world_rank": 787,
+                        "continent_rank": 251,
+                        "country_rank": 41
+                    }
+                },
+                "pyram": {
+                    "single": {
+                        "best": 143,
+                        "world_rank": 264,
+                        "continent_rank": 99,
+                        "country_rank": 24
+                    },
+                    "average": {
+                        "best": 261,
+                        "world_rank": 356,
+                        "continent_rank": 122,
+                        "country_rank": 28
+                    }
+                },
+                "skewb": {
+                    "single": {
+                        "best": 216,
+                        "world_rank": 882,
+                        "continent_rank": 330,
+                        "country_rank": 77
+                    },
+                    "average": {
+                        "best": 419,
+                        "world_rank": 1133,
+                        "continent_rank": 407,
+                        "country_rank": 83
+                    }
+                },
+                "sq1": {
+                    "single": {
+                        "best": 911,
+                        "world_rank": 907,
+                        "continent_rank": 301,
+                        "country_rank": 48
+                    },
+                    "average": {
+                        "best": 1355,
+                        "world_rank": 1150,
+                        "continent_rank": 375,
+                        "country_rank": 55
+                    }
+                }
+            },
+            "medals": {
+                "gold": 63,
+                "silver": 71,
+                "bronze": 77,
+                "total": 211
+            },
+            "records": {
+                "national": 0,
+                "continental": 0,
+                "world": 0,
+                "total": 0
+            }
+        }
     ]
 }

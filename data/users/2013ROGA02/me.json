@@ -1,0 +1,35 @@
+{
+    "me": {
+        "id": 1686,
+        "created_at": "2015-08-21T11:08:00.000Z",
+        "updated_at": "2025-02-05T11:14:43.000Z",
+        "name": "Przemysław Rogalski",
+        "wca_id": "2013ROGA02",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "https://www.worldcubeassociation.org/persons/2013ROGA02",
+        "country": {
+            "id": "Poland",
+            "name": "Poland",
+            "continentId": "_Europe",
+            "iso2": "PL"
+        },
+        "delegate_status": "regional_delegate",
+        "location": null,
+        "region_id": 16,
+        "class": "user",
+        "teams": [],
+        "avatar": {
+            "id": 67207,
+            "status": "approved",
+            "thumbnail_crop_x": 647,
+            "thumbnail_crop_y": 153,
+            "thumbnail_crop_w": 1708,
+            "thumbnail_crop_h": 1708,
+            "url": "https://avatars.worldcubeassociation.org/onqi373vm311kquczwg32165d762",
+            "thumb_url": "https://avatars.worldcubeassociation.org/7hzfmacdyrsjz7aqw5luc3342vmc",
+            "is_default": false,
+            "can_edit_thumbnail": true
+        }
+    }
+}

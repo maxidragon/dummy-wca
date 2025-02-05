@@ -18,10 +18,16 @@
         "class": "user",
         "teams": [],
         "avatar": {
-            "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2021KULA02/1723705115.jpg",
-            "pending_url": "https://assets.worldcubeassociation.org/assets/6b18da4/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
-            "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2021KULA02/1723705115_thumb.jpg",
-            "is_default": false
+            "id": 66870,
+            "status": "approved",
+            "thumbnail_crop_x": 160,
+            "thumbnail_crop_y": 347,
+            "thumbnail_crop_w": 158,
+            "thumbnail_crop_h": 158,
+            "url": "https://avatars.worldcubeassociation.org/63qm5gcnkszec1mkqcp6t2g3mawd",
+            "thumb_url": "https://avatars.worldcubeassociation.org/8r7574nirxcj4cfsb3nvin7dj8me",
+            "is_default": false,
+            "can_edit_thumbnail": true
         }
     }
 }

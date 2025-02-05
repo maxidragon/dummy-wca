@@ -1,0 +1,22 @@
+[
+  {
+    "id": "SLSFinal2024",
+    "name": "SLS Final 2024",
+    "url": "http://localhost:3000/competitions/SLSFinal2024",
+    "registration_open": "2023-11-15T19:00:00.000Z",
+    "start_date": "2024-05-24",
+    "end_date": "2024-05-25",
+    "country_iso2": "PL",
+    "class": "competition"
+  },
+  {
+    "id": "BrizzonSylwesterOpen2024",
+    "name": "Brizzon Sylwester Open 2024",
+    "url": "http://localhost:3000/competitions/BrizzonSylwesterOpen2024",
+    "registration_open": "2024-12-10T18:55:00Z",
+    "start_date": "2024-12-31",
+    "end_date": "2024-12-31",
+    "country_iso2": "PL",
+    "class": "competition"
+  }
+]

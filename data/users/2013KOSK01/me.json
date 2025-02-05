@@ -33,10 +33,16 @@
             }
         ],
         "avatar": {
+            "id": 2156,
+            "status": "approved",
+            "thumbnail_crop_x": 0,
+            "thumbnail_crop_y": 36,
+            "thumbnail_crop_w": 598,
+            "thumbnail_crop_h": 598,
             "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013KOSK01/1656095761.jpg",
-            "pending_url": "https://assets.worldcubeassociation.org/assets/6b18da4/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
             "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013KOSK01/1656095761_thumb.jpg",
-            "is_default": false
+            "is_default": false,
+            "can_edit_thumbnail": false
         }
     }
 }
