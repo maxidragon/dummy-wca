@@ -1,8 +1,9 @@
 services:
   dummy_wca:
-    image: maxidragon/dummy-wca:latest
+    image: maxidragon/dummy-wca:main
     container_name: dummy-wca
-    network_mode: host
+    ports:
+      - 3001:3000
     build:
       dockerfile: Dockerfile
       context: ./
