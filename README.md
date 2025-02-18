@@ -8,7 +8,11 @@ This project was mainly created for testing the [FKMTime](https://github.com/FKM
 
 ### `GET /api/v0/competitions?managed_by_me=true`
 
-Returns a list of manageable competitions. Requires the `Authorization` header to be set to `Bearer example-access-token`.
+Returns a list of manageable competitions. Requires the `Authorization` header to be set to `Bearer <user-token>`. Every user has their own token.
+
+### `GET /api/v0/competitions/:id`
+
+Returns the information of a competition.
 
 ### `GET /api/v0/competitions/:id/wcif`
 
@@ -22,7 +26,7 @@ Returns the public WCIF of a competition. Does not require any authentication.
 
 ### `GET /api/v0/me`
 
-Returns the current user information. Requires the `Authorization` header to be set to `Bearer example-access-token`.
+Returns the current user information. Requires the `Authorization` header to be set to `Bearer <user-token>`. Every user has their own token.
 
 ### `GET /oauth/authorize`
 

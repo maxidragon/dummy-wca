@@ -155,13 +155,30 @@ pub async fn get_competitions_handler(
 pub async fn get_public_wcif_handler(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let file_path = &format!("data/competitions/{}.json", id);
+    let file_path = &format!("data/competitions/{}/wcif.json", id);
     match read_json_file(file_path) {
         Ok(data) => {
             Ok(Json(data))
         }
         Err(err) => {
             println!("{}", err);
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"status": "error","message": "ID not found"})),
+            ))
+        }
+    }
+}
+
+pub async fn get_competition_info_handler(
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let file_path = &format!("data/competitions/{}/competition.json", id);
+    match read_json_file(file_path) {
+        Ok(data) => {
+            Ok(Json(data))
+        }
+        Err(_) => {
             return Err((
                 StatusCode::NOT_FOUND,
                 Json(json!({"status": "error","message": "ID not found"})),
@@ -223,7 +240,7 @@ pub async fn get_wcif_handler(
             Json(json!({"status": "error","message": "Forbidden resource"})),
         ))
     }
-    let file_path = &format!("data/competitions/{}.json", id);
+    let file_path = &format!("data/competitions/{}/wcif.json", id);
     match read_json_file(file_path) {
         Ok(data) => {
             Ok(Json(data))
