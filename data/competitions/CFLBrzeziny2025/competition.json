@@ -1,0 +1,451 @@
+{
+    "id": "CFLBrzeziny2025",
+    "name": "Cube Factory League Brzeziny 2025",
+    "information": "![](https://www.worldcubeassociation.org/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTE4MTI3LCJwdXIiOiJibG9iX2lkIn19--5fd0db5692c5667b6070e62a017045c179c7dc63/brzeziny%20wca.png)\n\nDrugie w tym sezonie zawody z cyklu CFL w Brzezinach! Zapraszamy wszystkich gorąco!\n\nSecond Brzeziny competition in current CFL season!",
+    "venue": "[Zespół Szkół Ponadpodstawowych w Brzezinach](https://zspbrzeziny.szkoly.lodz.pl/)",
+    "contact": null,
+    "registration_open": "2025-08-25T17:45:00.000Z",
+    "registration_close": "2025-09-05T17:00:00.000Z",
+    "use_wca_registration": true,
+    "guests_enabled": true,
+    "announced_at": "2025-08-20T16:39:28.000Z",
+    "base_entry_fee_lowest_denomination": 8500,
+    "currency_code": "PLN",
+    "start_date": "2025-09-20",
+    "end_date": "2025-09-21",
+    "enable_donations": null,
+    "competitor_limit": 110,
+    "extra_registration_requirements": "Aby pojawić się na liście zawodniczej należy opłacić wpisowe na podane konto:\n\nRachunek: PL06 1140 2004 0000 3802 7474 5088\nOdbiorca: Krzysztof Bober\nNazwa przelewu: Imię nazwisko, CFL Brzeziny 2025\n\nTo appear on the competitor list, you must pay the registration fee to the following account:\n\nAccount number: PL06 1140 2004 0000 3802 7474 5088\nRecipient: Krzysztof Bober\nTransfer title: Name surname, CFL Brzeziny 2025\n",
+    "on_the_spot_registration": true,
+    "on_the_spot_entry_fee_lowest_denomination": 10000,
+    "refund_policy_percent": 90,
+    "refund_policy_limit_date": "2025-09-16T17:00:00.000Z",
+    "guests_entry_fee_lowest_denomination": 0,
+    "qualification_results": false,
+    "external_registration_page": null,
+    "event_restrictions": false,
+    "cancelled_at": null,
+    "waiting_list_deadline_date": "2025-09-17T17:00:00.000Z",
+    "event_change_deadline_date": null,
+    "guest_entry_status": "unclear",
+    "allow_registration_edits": true,
+    "allow_registration_without_qualification": false,
+    "guests_per_registration_limit": null,
+    "events_per_registration_limit": null,
+    "force_comment_in_registration": null,
+    "competitor_can_cancel": "always",
+    "auto_accept_disable_threshold": null,
+    "auto_accept_preference": "disabled",
+    "url": "http://localhost:3000/competitions/CFLBrzeziny2025",
+    "website": "http://localhost:3000/competitions/CFLBrzeziny2025",
+    "short_name": "CFL Brzeziny 2025",
+    "city": "Brzeziny",
+    "venue_address": "ul. Konstytucji 3 Maja 5 95-060, Brzeziny",
+    "venue_details": "Gym hall",
+    "latitude_degrees": 51.801986,
+    "longitude_degrees": 19.76107,
+    "country_iso2": "PL",
+    "event_ids": [
+      "333",
+      "222",
+      "444",
+      "333oh",
+      "clock",
+      "minx",
+      "pyram",
+      "skewb",
+      "sq1",
+      "333mbf"
+    ],
+    "main_event_id": "333",
+    "number_of_bookmarks": 33,
+    "using_payment_integrations?": false,
+    "uses_qualification?": false,
+    "uses_cutoff?": true,
+    "competition_series_ids": [
+      
+    ],
+    "registration_full?": false,
+    "part_of_competition_series?": false,
+    "registration_full_and_accepted?": false,
+    "delegates": [
+      {
+        "id": 14759,
+        "created_at": "2016-03-19T13:01:24.000Z",
+        "updated_at": "2025-09-30T23:51:27.000Z",
+        "name": "Amelia Zakrzewska",
+        "wca_id": "2012ZAKR01",
+        "gender": "f",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2012ZAKR01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": "trainee_delegate",
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 66285,
+          "status": "approved",
+          "thumbnail_crop_x": 292,
+          "thumbnail_crop_y": 120,
+          "thumbnail_crop_w": 1018,
+          "thumbnail_crop_h": 1018,
+          "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      },
+      {
+        "id": 81510,
+        "created_at": "2017-11-15T09:26:58.000Z",
+        "updated_at": "2025-09-30T17:03:16.000Z",
+        "name": "Krzysztof Bober",
+        "wca_id": "2013BOBE01",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2013BOBE01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "location": "Poland (Central)",
+        "region_id": 16,
+        "delegate_status": "delegate",
+        "email": "81510@worldcubeassociation.org",
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 10837,
+          "status": "approved",
+          "thumbnail_crop_x": 186,
+          "thumbnail_crop_y": 186,
+          "thumbnail_crop_w": 200,
+          "thumbnail_crop_h": 200,
+          "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013BOBE01/1636925953.jpg",
+          "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013BOBE01/1636925953_thumb.jpg",
+          "is_default": false,
+          "can_edit_thumbnail": false
+        }
+      },
+      {
+        "id": 228972,
+        "created_at": "2021-04-08T20:03:03.000Z",
+        "updated_at": "2025-09-30T20:13:35.000Z",
+        "name": "Dominika Warchoł",
+        "wca_id": "2021WARC01",
+        "gender": "f",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2021WARC01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": "trainee_delegate",
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 19583,
+          "status": "approved",
+          "thumbnail_crop_x": 146,
+          "thumbnail_crop_y": 156,
+          "thumbnail_crop_w": 388,
+          "thumbnail_crop_h": 388,
+          "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2021WARC01/1696849976.jpg",
+          "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2021WARC01/1696849976_thumb.jpg",
+          "is_default": false,
+          "can_edit_thumbnail": false
+        }
+      },
+      {
+        "id": 259132,
+        "created_at": "2022-03-06T18:30:27.000Z",
+        "updated_at": "2025-10-02T18:18:37.000Z",
+        "name": "Maksymilian Gala",
+        "wca_id": "2022GALA01",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2022GALA01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": "trainee_delegate",
+        "class": "user",
+        "teams": [
+          {
+            "id": 1786,
+            "friendly_id": "wrt",
+            "leader": false,
+            "senior_member": false,
+            "name": "Maksymilian Gala",
+            "wca_id": "2022GALA01",
+            "avatar": {
+              "id": 79405,
+              "status": "approved",
+              "thumbnail_crop_x": 232,
+              "thumbnail_crop_y": 235,
+              "thumbnail_crop_w": 445,
+              "thumbnail_crop_h": 445,
+              "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+              "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+              "is_default": false,
+              "can_edit_thumbnail": true
+            }
+          },
+          {
+            "id": 2286,
+            "friendly_id": "weat",
+            "leader": false,
+            "senior_member": false,
+            "name": "Maksymilian Gala",
+            "wca_id": "2022GALA01",
+            "avatar": {
+              "id": 79405,
+              "status": "approved",
+              "thumbnail_crop_x": 232,
+              "thumbnail_crop_y": 235,
+              "thumbnail_crop_w": 445,
+              "thumbnail_crop_h": 445,
+              "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+              "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+              "is_default": false,
+              "can_edit_thumbnail": true
+            }
+          }
+        ],
+        "avatar": {
+          "id": 79405,
+          "status": "approved",
+          "thumbnail_crop_x": 232,
+          "thumbnail_crop_y": 235,
+          "thumbnail_crop_w": 445,
+          "thumbnail_crop_h": 445,
+          "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      }
+    ],
+    "organizers": [
+      {
+        "id": 5767,
+        "created_at": "2015-09-30T21:17:46.000Z",
+        "updated_at": "2025-09-09T17:32:48.000Z",
+        "name": "Franciszek Fidos",
+        "wca_id": "2013FIDO01",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2013FIDO01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": null,
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 2096,
+          "status": "approved",
+          "thumbnail_crop_x": null,
+          "thumbnail_crop_y": null,
+          "thumbnail_crop_w": null,
+          "thumbnail_crop_h": null,
+          "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013FIDO01/1528718797.jpg",
+          "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013FIDO01/1528718797_thumb.jpg",
+          "is_default": false,
+          "can_edit_thumbnail": false
+        }
+      },
+      {
+        "id": 14759,
+        "created_at": "2016-03-19T13:01:24.000Z",
+        "updated_at": "2025-09-30T23:51:27.000Z",
+        "name": "Amelia Zakrzewska",
+        "wca_id": "2012ZAKR01",
+        "gender": "f",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2012ZAKR01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": "trainee_delegate",
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 66285,
+          "status": "approved",
+          "thumbnail_crop_x": 292,
+          "thumbnail_crop_y": 120,
+          "thumbnail_crop_w": 1018,
+          "thumbnail_crop_h": 1018,
+          "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      },
+      {
+        "id": 51799,
+        "created_at": "2017-03-26T19:15:05.000Z",
+        "updated_at": "2025-09-30T18:59:58.000Z",
+        "name": "Jakub Hanuszkiewicz",
+        "wca_id": "2014HANU01",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2014HANU01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": null,
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 82465,
+          "status": "approved",
+          "thumbnail_crop_x": 0,
+          "thumbnail_crop_y": 458,
+          "thumbnail_crop_w": 810,
+          "thumbnail_crop_h": 810,
+          "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      },
+      {
+        "id": 81510,
+        "created_at": "2017-11-15T09:26:58.000Z",
+        "updated_at": "2025-09-30T17:03:16.000Z",
+        "name": "Krzysztof Bober",
+        "wca_id": "2013BOBE01",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2013BOBE01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "location": "Poland (Central)",
+        "region_id": 16,
+        "delegate_status": "delegate",
+        "email": "81510@worldcubeassociation.org",
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 10837,
+          "status": "approved",
+          "thumbnail_crop_x": 186,
+          "thumbnail_crop_y": 186,
+          "thumbnail_crop_w": 200,
+          "thumbnail_crop_h": 200,
+          "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013BOBE01/1636925953.jpg",
+          "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2013BOBE01/1636925953_thumb.jpg",
+          "is_default": false,
+          "can_edit_thumbnail": false
+        }
+      },
+      {
+        "id": 166782,
+        "created_at": "2019-07-26T09:38:32.000Z",
+        "updated_at": "2025-09-29T17:09:50.000Z",
+        "name": "Szymon Grodzki",
+        "wca_id": "2020GROD01",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2020GROD01",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": null,
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 16989,
+          "status": "approved",
+          "thumbnail_crop_x": null,
+          "thumbnail_crop_y": null,
+          "thumbnail_crop_w": null,
+          "thumbnail_crop_h": null,
+          "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2020GROD01/1686062260.jpg",
+          "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2020GROD01/1686062260_thumb.jpg",
+          "is_default": false,
+          "can_edit_thumbnail": false
+        }
+      },
+      {
+        "id": 423597,
+        "created_at": "2024-04-13T18:03:49.000Z",
+        "updated_at": "2025-09-30T17:21:38.000Z",
+        "name": "Piotr Gabara",
+        "wca_id": "2024GABA02",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "http://localhost:3000/persons/2024GABA02",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continent_id": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": null,
+        "class": "user",
+        "teams": [
+          
+        ],
+        "avatar": {
+          "id": 34163,
+          "status": "approved",
+          "thumbnail_crop_x": null,
+          "thumbnail_crop_y": null,
+          "thumbnail_crop_w": null,
+          "thumbnail_crop_h": null,
+          "url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2024GABA02/1713898620.jpg",
+          "thumb_url": "https://avatars.worldcubeassociation.org/uploads/user/avatar/2024GABA02/1713898620_thumb.jpg",
+          "is_default": false,
+          "can_edit_thumbnail": false
+        }
+      }
+    ],
+    "class": "competition"
+  }

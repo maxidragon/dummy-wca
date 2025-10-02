@@ -8,5 +8,15 @@
     "end_date": "2024-05-25",
     "country_iso2": "PL",
     "class": "competition"
+  },
+  {
+    "id": "CFLBrzeziny2025",
+    "name": "CFL Brzeziny 2025",
+    "url": "http://localhost:3000/competitions/CFLBrzeziny2025",
+    "registration_open": "2025-08-25T17:45:00.000Z",
+    "start_date": "2025-09-20",
+    "end_date": "2025-09-21",
+    "country_iso2": "PL",
+    "class": "competition"
   }
 ]

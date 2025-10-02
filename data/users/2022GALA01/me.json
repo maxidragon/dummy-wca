@@ -14,18 +14,59 @@
       "continentId": "_Europe",
       "iso2": "PL"
     },
-    "delegate_status": null,
+    "delegate_status": "trainee_delegate",
     "class": "user",
-    "teams": [],
+    "teams": [
+      {
+        "id": 1786,
+        "friendly_id": "wrt",
+        "leader": false,
+        "senior_member": false,
+        "name": "Maksymilian Gala",
+        "wca_id": "2022GALA01",
+        "avatar": {
+          "id": 79405,
+          "status": "approved",
+          "thumbnail_crop_x": 232,
+          "thumbnail_crop_y": 235,
+          "thumbnail_crop_w": 445,
+          "thumbnail_crop_h": 445,
+          "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      },
+      {
+        "id": 2286,
+        "friendly_id": "weat",
+        "leader": false,
+        "senior_member": false,
+        "name": "Maksymilian Gala",
+        "wca_id": "2022GALA01",
+        "avatar": {
+          "id": 79405,
+          "status": "approved",
+          "thumbnail_crop_x": 232,
+          "thumbnail_crop_y": 235,
+          "thumbnail_crop_w": 445,
+          "thumbnail_crop_h": 445,
+          "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      }
+    ],
     "avatar": {
-      "id": 65552,
+      "id": 79405,
       "status": "approved",
-      "thumbnail_crop_x": 0,
-      "thumbnail_crop_y": 83,
-      "thumbnail_crop_w": 423,
-      "thumbnail_crop_h": 423,
-      "url": "https://avatars.worldcubeassociation.org/otoudijkvpd3vwjfaw8qf93jqcbj",
-      "thumb_url": "https://avatars.worldcubeassociation.org/fu67ueuck7ciswuln9eryvc1som3",
+      "thumbnail_crop_x": 232,
+      "thumbnail_crop_y": 235,
+      "thumbnail_crop_w": 445,
+      "thumbnail_crop_h": 445,
+      "url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
+      "thumb_url": "/assets/missing_avatar_thumb-ff0c01100dab5125eabebc7b8391dcd796fcbf2cc3aee7bd2deb2400e005a9eb.png",
       "is_default": false,
       "can_edit_thumbnail": true
     }
