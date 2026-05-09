@@ -187,18 +187,47 @@ pub async fn get_competition_info_handler(
     }
 }
 
+pub async fn get_wcif_v2_handler(
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    get_wcif(id, None, true).await
+}
+
 pub async fn get_wcif_handler(
     Path(id): Path<String>,
-    bearer_token: TypedHeader<headers::Authorization<Bearer>>,
+    bearer_token: Option<TypedHeader<headers::Authorization<Bearer>>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let token_str = bearer_token.token();
-    let wca_id = token_str.split("-").collect::<Vec<&str>>()[1];
+    get_wcif(id, bearer_token, false).await
+}
+
+async fn get_wcif(
+    id: String,
+    bearer_token: Option<TypedHeader<headers::Authorization<Bearer>>>,
+    is_v2: bool,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    if is_v2 {
+        let file_path = format!("data/competitions/{}/wcif_v2.json", id);
+        return match read_json_file(&file_path) {
+            Ok(data) => Ok(Json(data)),
+            Err(_) => Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"status": "error","message": "ID not found"})),
+            )),
+        };
+    }
+
+    let token_str = match &bearer_token {
+        Some(token) => token.token(),
+        None => "",
+    };
+
     if token_str == "" {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"status": "error","message": "Unauthorized"})),
         ))
     }
+    let wca_id = token_str.split("-").collect::<Vec<&str>>()[1];
     let manageable_competitions_file_path = &format!("data/users/{}/manageable-competitions.json", wca_id);
     let user_info_path = &format!("data/users/{}/me.json", wca_id);
     let mut has_access = false;

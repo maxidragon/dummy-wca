@@ -3,7 +3,7 @@ services:
     image: maxidragon/dummy-wca:main
     container_name: dummy-wca
     ports:
-      - 3001:3000
+      - 3000:3000
     build:
       dockerfile: Dockerfile
       context: ./
