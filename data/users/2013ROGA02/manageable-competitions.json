@@ -18,5 +18,15 @@
     "end_date": "2024-12-31",
     "country_iso2": "PL",
     "class": "competition"
+  },
+  {
+    "id": "WLSMarzec2026",
+    "name": "WLS Marzec 2026",
+    "url": "http://localhost:3000/competitions/WLSMarzec2026",
+    "registration_open": "2026-02-25T18:55:00.000Z",
+    "start_date": "2026-03-11",
+    "end_date": "2026-03-11",
+    "country_iso2": "PL",
+    "class": "competition"
   }
 ]
