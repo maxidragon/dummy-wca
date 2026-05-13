@@ -7,7 +7,43 @@
     "start_date": "2024-05-24",
     "end_date": "2024-05-25",
     "country_iso2": "PL",
-    "class": "competition"
+    "class": "competition",
+    "delegates": [
+      {
+        "id": 1686,
+        "created_at": "2015-08-21T11:08:00.000Z",
+        "updated_at": "2025-02-05T12:30:54.000Z",
+        "name": "Przemysław Rogalski",
+        "wca_id": "2013ROGA02",
+        "gender": "m",
+        "country_iso2": "PL",
+        "url": "https://staging.worldcubeassociation.org/persons/2013ROGA02",
+        "country": {
+          "id": "Poland",
+          "name": "Poland",
+          "continentId": "_Europe",
+          "iso2": "PL"
+        },
+        "delegate_status": "regional_delegate",
+        "email": "1686@worldcubeassociation.org",
+        "location": null,
+        "region_id": 16,
+        "class": "user",
+        "teams": [],
+        "avatar": {
+          "id": 67207,
+          "status": "approved",
+          "thumbnail_crop_x": 647,
+          "thumbnail_crop_y": 153,
+          "thumbnail_crop_w": 1708,
+          "thumbnail_crop_h": 1708,
+          "url": "https://assets-staging.worldcubeassociation.org/assets/29c2cb89d/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
+          "thumb_url": "https://assets-staging.worldcubeassociation.org/assets/29c2cb89d/assets/missing_avatar_thumb-d77f478a307a91a9d4a083ad197012a391d5410f6dd26cb0b0e3118a5de71438.png",
+          "is_default": false,
+          "can_edit_thumbnail": true
+        }
+      }
+    ]
   },
   {
     "id": "BrizzonSylwesterOpen2024",
