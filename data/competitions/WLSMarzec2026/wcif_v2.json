@@ -9120,7 +9120,7 @@
           "id": "222-r1",
           "format": "a",
           "timeLimit": { "centiseconds": 6000, "cumulativeRoundIds": [] },
-          "cutoff": { "numberOfAttempts": 2, "attemptResult": 1200 },
+          "cutoff": { "numberOfAttempts": 2, "resultValue": 1200 },
           "scrambleSetCount": 3,
           "results": [
             {
@@ -9636,7 +9636,7 @@
           "id": "777-r1",
           "format": "m",
           "timeLimit": { "centiseconds": 36000, "cumulativeRoundIds": [] },
-          "cutoff": { "numberOfAttempts": 1, "attemptResult": 30000 },
+          "cutoff": { "numberOfAttempts": 1, "resultValue": 30000 },
           "scrambleSetCount": 2,
           "results": [
             {
@@ -9885,7 +9885,7 @@
           "id": "skewb-r1",
           "format": "a",
           "timeLimit": { "centiseconds": 6000, "cumulativeRoundIds": [] },
-          "cutoff": { "numberOfAttempts": 2, "attemptResult": 1500 },
+          "cutoff": { "numberOfAttempts": 2, "resultValue": 1500 },
           "scrambleSetCount": 3,
           "results": [
             {
