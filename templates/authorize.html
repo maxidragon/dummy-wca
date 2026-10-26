@@ -22,6 +22,15 @@
         <button onclick="login('2013KOSK01')">Jonatan Kłosko (2013KOSK01)</button>
         <button onclick="login('2021KULA02')">Maksymilian Kulas (2021KULA02)</button>
         <button onclick="login('2013ROGA02')">Przemysław Rogalski (2013ROGA02)</button>
+        <h2>Generated competition</h2>
+        <ul>
+            {% for account in accounts %}
+            <li>{{ account.name }} ({{ account.wca_id }}) - {{ account.description }}</li>
+            {% endfor %}
+        </ul>
+        {% for account in accounts %}
+        <button onclick="login('{{ account.wca_id }}')">{{ account.name }} ({{ account.wca_id }})</button>
+        {% endfor %}
         <script>
             const redirect_uri = document.getElementById('redirect_uri').innerText;
             console.log(redirect_uri);
