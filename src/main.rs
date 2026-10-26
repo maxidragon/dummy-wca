@@ -1,3 +1,4 @@
+mod generator;
 mod handler;
 mod route;
 mod schema;
