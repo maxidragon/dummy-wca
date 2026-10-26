@@ -118,7 +118,11 @@ Sign in with `code-<WCA ID>` or the buttons on `/oauth/authorize`. Every generat
 
 ### Patches are shared
 
-Patches live in the server's memory, so tests that share one dummy-wca see each other's changes. Call `POST /dummy/reset?id=<id>` before a test that patches, or only patch persons your test owns.
+dummy-wca has no sessions: everyone using one server, for example several FKMTime checkouts pointed at the same local container, shares its patches. One session's `PATCH .../wcif` shows up in every other session's WCIF, and `POST /dummy/reset` without an id clears everyone's patches. In tests:
+
+- Reset only your competition: `POST /dummy/reset?id=<competition id>`.
+- Prefer patching persons your test owns, and reset before (not only after) a test that patches.
+- For full isolation, run your own container.
 
 ## Running
 

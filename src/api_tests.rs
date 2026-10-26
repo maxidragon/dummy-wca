@@ -493,3 +493,22 @@ async fn authorize_page_offers_the_generated_accounts() {
     assert!(page.contains("login('2012VAQR01')"));
     assert!(page.contains("login('2013ROGA02')"));
 }
+
+#[tokio::test]
+async fn reset_by_id_leaves_other_competitions_alone() {
+    let app = app();
+    let empty = json!({ "persons": [{ "registrantId": 1, "assignments": [] }] });
+    let generated = format!("/api/v0/competitions/{}/wcif", ID);
+    let snapshot = "/api/v0/competitions/WLSMarzec2026/wcif";
+    assert_eq!(call(&app, Method::PATCH, &generated, Some(DELEGATE), Some(empty.clone())).await.0, StatusCode::OK);
+    assert_eq!(call(&app, Method::PATCH, snapshot, Some("token-2013ROGA02"), Some(empty)).await.0, StatusCode::OK);
+
+    let (_, cleared) = call(&app, Method::POST, &format!("/dummy/reset?id={}", ID), None, None).await;
+    assert_eq!(cleared["clearedCompetitions"], 1);
+
+    let assignments = |wcif: &Value| wcif["persons"].as_array().unwrap().iter().find(|p| p["registrantId"] == 1).unwrap()["assignments"].clone();
+    let (_, wcif) = get(&app, "/api/v0/competitions/WLSMarzec2026/wcif/version/2", None).await;
+    assert_eq!(assignments(&wcif), json!([]), "the snapshot patch survives");
+    let (_, wcif) = get(&app, &format!("/api/v0/competitions/{}/wcif/version/2", ID), Some(DELEGATE)).await;
+    assert_ne!(assignments(&wcif), json!([]), "the generated patch is gone");
+}
