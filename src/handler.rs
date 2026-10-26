@@ -477,8 +477,8 @@ pub async fn patch_wcif_handler(
     Ok(Json(json!({"status": "Successfully saved WCIF"})).into_response())
 }
 
-/// Test helper: what the generated competition is right now, and which
-/// accounts can sign in to it. FKMTime's seed reads its id from here.
+/// Test helper: what the generated competition is, and which accounts can
+/// sign in to it. FKMTime's seed reads its id and dates from here.
 pub async fn get_generated_handler(State(state): State<SharedState>) -> ApiResult {
     let competition = state.competition();
     let accounts: serde_json::Map<String, Value> = ACCOUNTS
@@ -506,7 +506,10 @@ pub async fn get_generated_handler(State(state): State<SharedState>) -> ApiResul
         "numberOfDays": competition.number_of_days,
         "timezone": competition.timezone.name(),
         "countryIso2": competition.host.country_iso2,
+        // Pinned by GENERATED_START_DATE, or else today in the venue timezone
+        // when the server started; it only moves on a restart.
         "startDatePinned": state.config.start_date.is_some(),
+        "serverStartedAt": state.started_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         "seed": state.config.seed,
         "competitors": competition.persons.len(),
         "acceptedCompetitors": competition.accepted().count(),

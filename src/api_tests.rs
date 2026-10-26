@@ -7,7 +7,6 @@ use axum::{
     http::{Method, Request, StatusCode},
     Router,
 };
-use chrono::{DateTime, Utc};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
 use tower::ServiceExt;
@@ -77,26 +76,55 @@ async fn discovery_names_the_competition_and_accounts() {
     assert_eq!(body["accounts"]["admin"]["role"], "wst");
 }
 
-#[tokio::test]
-async fn today_comes_from_the_venue_timezone() {
-    fn new_years_eve() -> DateTime<Utc> {
-        // Already 1 January 2027 in Warsaw.
-        "2026-12-31T23:30:00Z".parse().unwrap()
-    }
-    let app = create_router(Arc::new(AppState::with_clock(
+fn started_at(now: &str) -> Router {
+    create_router(Arc::new(AppState::started_at(
         GeneratorConfig::default(),
-        new_years_eve,
-    )));
+        now.parse().unwrap(),
+    )))
+}
+
+#[tokio::test]
+async fn today_is_the_venue_date_at_startup() {
+    // 22:30 UTC on 31 December is 23:30 in Warsaw: still 2026.
+    let (_, body) = get(&started_at("2026-12-31T22:30:00Z"), "/dummy/generated", None).await;
+    assert_eq!(body["id"], "DummyCubingOpen2026");
+    assert_eq!(body["startDate"], "2026-12-31");
+    assert_eq!(body["startDatePinned"], false);
+    assert_eq!(body["serverStartedAt"], "2026-12-31T22:30:00Z");
+
+    // An hour later it is already 1 January 2027 in Warsaw.
+    let app = started_at("2026-12-31T23:30:00Z");
     let (_, body) = get(&app, "/dummy/generated", None).await;
     assert_eq!(body["id"], "DummyCubingOpen2027");
     assert_eq!(body["startDate"], "2027-01-01");
-    let (status, _) = get(
-        &app,
-        "/api/v0/competitions/DummyCubingOpen2026/wcif/version/2",
-        None,
-    )
-    .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    let uri = "/api/v0/competitions/DummyCubingOpen2026/wcif/version/2";
+    assert_eq!(get(&app, uri, None).await.0, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn the_competition_does_not_move_while_the_server_runs() {
+    // The date is resolved once: a server started on New Year's Eve keeps
+    // serving the 2026 competition after midnight, until it restarts.
+    let state = Arc::new(AppState::started_at(
+        GeneratorConfig::default(),
+        "2026-12-31T22:30:00Z".parse().unwrap(),
+    ));
+    let before = state.competition();
+    let app = create_router(state.clone());
+    let (status, wcif) = get(&app, "/api/v0/competitions/DummyCubingOpen2026/wcif/version/2", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(wcif["schedule"]["startDate"], "2026-12-31");
+    assert!(Arc::ptr_eq(&before, &state.competition()));
+}
+
+#[tokio::test]
+async fn a_pinned_date_ignores_the_clock() {
+    let state = AppState::started_at(pinned("2027-03-20"), "2026-12-31T23:30:00Z".parse().unwrap());
+    let app = create_router(Arc::new(state));
+    let (_, body) = get(&app, "/dummy/generated", None).await;
+    assert_eq!(body["id"], "DummyCubingOpen2027");
+    assert_eq!(body["startDate"], "2027-03-20");
+    assert_eq!(body["startDatePinned"], true);
 }
 
 #[tokio::test]

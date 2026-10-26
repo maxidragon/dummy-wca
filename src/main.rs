@@ -12,7 +12,6 @@ use std::sync::Arc;
 
 use axum::http::{header::{AUTHORIZATION, CONTENT_TYPE}, Method};
 
-use chrono::Utc;
 use tokio::net::TcpListener;
 
 use generator::GeneratorConfig;
@@ -28,11 +27,11 @@ async fn main() {
         eprintln!("Invalid generated competition settings: {}", err);
         std::process::exit(1);
     });
-    if let Err(err) = generator::check(&config, config.start_date_at(Utc::now())) {
+    let state = Arc::new(AppState::new(config));
+    if let Err(err) = generator::check(&state.config, state.competition().start_date) {
         eprintln!("Invalid generated competition settings: {}", err);
         std::process::exit(1);
     }
-    let state = Arc::new(AppState::new(config));
 
     let app = create_router(state.clone()).layer(
         CorsLayer::new()

@@ -8,7 +8,8 @@ use super::names::{self, Host};
 #[derive(Clone)]
 pub struct GeneratorConfig {
     pub name: String,
-    /// Pinned start date; `None` means today in the venue timezone.
+    /// Pinned start date; `None` means today in the venue timezone when the
+    /// server starts.
     pub start_date: Option<NaiveDate>,
     pub days: u32,
     pub competitors: u32,
@@ -93,7 +94,7 @@ impl GeneratorConfig {
         })
     }
 
-    /// The start date for a request made at `now`: the pinned date, or
+    /// The start date for a server started at `now`: the pinned date, or
     /// today in the venue timezone.
     pub fn start_date_at(&self, now: DateTime<Utc>) -> NaiveDate {
         self.start_date

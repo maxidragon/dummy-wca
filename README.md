@@ -4,7 +4,7 @@ This is a dummy WCA server that can be used for testing purposes. It is a Axum (
 
 This project was mainly created for testing the [FKMTime](https://github.com/FKMTime/FKMTime) project.
 
-Besides the snapshot competitions in `data/`, it serves a [generated test competition](#generated-test-competition): invented people, results and schedule, starting today by default.
+Besides the snapshot competitions in `data/`, it serves a [generated test competition](#generated-test-competition): invented people, results and schedule, starting on the day the server starts by default.
 
 ## Endpoints
 
@@ -87,7 +87,7 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | Variable | Default | Meaning |
 |---|---|---|
 | `GENERATED_NAME` | `Dummy Cubing Open` | Name without the year. The id is its letters and digits plus the year. |
-| `GENERATED_START_DATE` | today in the venue timezone | `YYYY-MM-DD`. Without it, "today" is worked out on every request, so a long-running server moves along with the calendar. |
+| `GENERATED_START_DATE` | today in the venue timezone, at server start | `YYYY-MM-DD`. Without it, the date is taken once when the server starts; restart it to move the competition to the new today. |
 | `GENERATED_DAYS` | `2` | 1 to 4. |
 | `GENERATED_COMPETITORS` | `60` | 2 to 1000 registrations; about 90% are accepted. |
 | `GENERATED_EVENTS` | `333:3,222:2,444:2,pyram:2,skewb:1,333oh:2,clock:1,333bf:1,sq1:1,minx:1` | Events with their number of rounds (1 to 4). Rounds are dropped when there are too few competitors for them under the WCA Regulations. |
@@ -103,7 +103,7 @@ dummy-wca decides which day the competition starts, so a test setup should ask i
 1. `GET /dummy/generated` for the current `id` and dates.
 2. `GET /api/v0/competitions/<id>/wcif/version/2` with `Authorization: Bearer token-2012VAQR01` (the delegate) for the private WCIF to seed from.
 
-"Today" is the date in the venue timezone, not the server's, so a container running in UTC and a test machine in Poland agree. A test run that crosses midnight in the venue timezone sees the competition move to the next day; pin `GENERATED_START_DATE` to avoid that.
+"Today" is the date in the venue timezone, not the server's, so a container running in UTC and a test machine in Poland agree. It is taken **once, when the server starts**, and doesn't change while it runs: a stack left up overnight keeps the competition a database was seeded from, and its id doesn't change on 1 January. Restart the container to move the competition to the new today (and reseed), or set `GENERATED_START_DATE` to pin it. `GET /dummy/generated` shows `startDatePinned` and `serverStartedAt`.
 
 ### Accounts
 

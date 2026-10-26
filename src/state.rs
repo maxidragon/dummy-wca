@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -12,9 +12,10 @@ type PersonPatch = serde_json::Map<String, Value>;
 
 pub struct AppState {
     pub config: GeneratorConfig,
-    now: fn() -> DateTime<Utc>,
-    /// Today's competition; rebuilt when the start date changes.
-    cache: Mutex<Option<Arc<Competition>>>,
+    /// When the server started; "today" is taken from this once, so the
+    /// competition doesn't move at midnight under a database seeded from it.
+    pub started_at: DateTime<Utc>,
+    competition: Arc<Competition>,
     /// Persons saved with `PATCH .../wcif`, by competition id and registrant id.
     /// Kept in memory only: a restart or `POST /dummy/reset` clears them.
     patches: RwLock<HashMap<String, HashMap<i64, PersonPatch>>>,
@@ -22,30 +23,24 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: GeneratorConfig) -> Self {
-        AppState::with_clock(config, Utc::now)
+        AppState::started_at(config, Utc::now())
     }
 
-    pub fn with_clock(config: GeneratorConfig, now: fn() -> DateTime<Utc>) -> Self {
+    /// Generates the competition for the start date as of `now`: the pinned
+    /// `GENERATED_START_DATE`, or today in the venue timezone.
+    pub fn started_at(config: GeneratorConfig, now: DateTime<Utc>) -> Self {
+        let competition = Arc::new(generator::generate(&config, config.start_date_at(now)));
         AppState {
             config,
-            now,
-            cache: Mutex::new(None),
+            started_at: now,
+            competition,
             patches: RwLock::new(HashMap::new()),
         }
     }
 
-    /// The generated competition as of now.
+    /// The generated competition. It stays the same until the server restarts.
     pub fn competition(&self) -> Arc<Competition> {
-        let start_date = self.config.start_date_at((self.now)());
-        let mut cache = self.cache.lock().expect("cache lock is never poisoned");
-        match cache.as_ref() {
-            Some(competition) if competition.start_date == start_date => competition.clone(),
-            _ => {
-                let competition = Arc::new(generator::generate(&self.config, start_date));
-                *cache = Some(competition.clone());
-                competition
-            }
-        }
+        self.competition.clone()
     }
 
     /// The generated competition, if `id` is its current id.
