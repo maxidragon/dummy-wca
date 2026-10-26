@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
 use chrono::{Datelike, NaiveDate, NaiveTime, Timelike};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::events;
 use super::model::Activity;
@@ -157,7 +157,12 @@ fn fixed_accounts_run_the_competition() {
     for person in &competition.persons {
         if let Some(wca_id) = &person.wca_id {
             let first_year: i32 = wca_id[..4].parse().unwrap();
-            assert!(first_year >= person.birthdate.year() + 6, "{} born {}", wca_id, person.birthdate);
+            assert!(
+                first_year >= person.birthdate.year() + 6,
+                "{} born {}",
+                wca_id,
+                person.birthdate
+            );
         }
     }
 }
@@ -317,7 +322,7 @@ fn assignments_are_consistent() {
             let activity = activities
                 .get(&assignment.activity_id)
                 .expect("assignment points at a real activity");
-            assert!(activity.code.contains("-r1-g"), "{}", activity.code);
+            assert!(activity.code.contains("-g"), "{}", activity.code);
             assert!(person.is_accepted());
             if assignment.assignment_code == "competitor" {
                 let event_id = activity.code.split('-').next().unwrap();
@@ -325,6 +330,11 @@ fn assignments_are_consistent() {
                 assert!(assignment.station_number.is_some());
             } else {
                 staffed += 1;
+                assert!(
+                    activity.code.contains("-r1-g"),
+                    "staff only in round 1: {}",
+                    activity.code
+                );
                 assert!(person.wca_id.is_some(), "newcomers don't staff");
             }
             slots.push((activity.start, activity.end));
@@ -339,6 +349,27 @@ fn assignments_are_consistent() {
         }
     }
     assert!(staffed > 50);
+
+    // Later rounds have exactly the expected number of competitors.
+    for event in &competition.events {
+        for round in event.rounds.iter().skip(1) {
+            let group_ids: HashSet<u32> = activities
+                .values()
+                .filter(|a| a.code.starts_with(&format!("{}-g", round.id)))
+                .map(|a| a.id)
+                .collect();
+            let assigned = competition
+                .persons
+                .iter()
+                .filter(|p| {
+                    p.assignments.iter().any(|a| {
+                        a.assignment_code == "competitor" && group_ids.contains(&a.activity_id)
+                    })
+                })
+                .count();
+            assert_eq!(assigned as u32, round.competitors, "{}", round.id);
+        }
+    }
 
     // Every accepted competitor has one competitor assignment per round-1 event.
     for event in &competition.events {
@@ -531,4 +562,177 @@ fn oversized_configurations_are_rejected() {
         ("GENERATED_EVENTS", "333:4,222:4,444:4,555:4,666:3,777:3,333bf:3,333fm:3,333oh:4,clock:4,minx:4,pyram:4,skewb:4,sq1:4"),
     ]);
     assert!(check(&config, date("2026-10-26")).is_err());
+}
+
+/// FKMTime's tests run against the default competition, so it has to keep
+/// every WCIF feature they exercise. Each check names what depends on it.
+#[test]
+fn default_competition_covers_what_fkmtime_uses() {
+    let config = GeneratorConfig::default();
+    let competition = generate(&config, date("2026-10-26"));
+    check(&config, competition.start_date).unwrap();
+    let wcif = wcif::wcif(&competition, Version::V2);
+
+    let rounds: Vec<&Value> = wcif["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|event| event["rounds"].as_array().unwrap())
+        .collect();
+    let has_round = |what: &str, test: &dyn Fn(&Value) -> bool| {
+        assert!(
+            rounds.iter().any(|round| test(round)),
+            "no round with {}",
+            what
+        );
+    };
+
+    // Cutoffs are read as `resultValue` only.
+    for round in &rounds {
+        assert!(round["cutoff"].get("attemptResult").is_none());
+    }
+    has_round("Ao5, time limit, no cutoff", &|r| {
+        r["format"] == "a" && r["timeLimit"]["centiseconds"].is_u64() && r["cutoff"].is_null()
+    });
+    has_round("Mo3 with a 1-attempt cutoff", &|r| {
+        r["format"] == "m"
+            && r["cutoff"]["numberOfAttempts"] == 1
+            && r["cutoff"]["resultValue"].is_u64()
+    });
+    has_round("Ao5 with a 2-attempt cutoff", &|r| {
+        r["format"] == "a"
+            && r["cutoff"]["numberOfAttempts"] == 2
+            && r["cutoff"]["resultValue"].is_u64()
+    });
+    has_round("a cumulative limit over itself", &|r| {
+        r["timeLimit"]["cumulativeRoundIds"] == json!([r["id"]])
+    });
+    has_round("Bo5", &|r| r["format"] == "5");
+    has_round("Bo3", &|r| r["format"] == "3");
+
+    // An event with 3 rounds and advancement through participationRuleset.
+    let three_rounds = wcif["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|event| event["rounds"].as_array().unwrap().len() >= 3)
+        .expect("an event with 3 rounds");
+    let source = |index: usize| {
+        three_rounds["rounds"][index]["participationRuleset"]["participationSource"].clone()
+    };
+    assert_eq!(source(0)["type"], "registrations");
+    assert_eq!(source(1)["type"], "round");
+    assert_eq!(source(1)["resultCondition"]["type"], "percent");
+    assert_eq!(source(2)["type"], "round");
+    assert_eq!(source(2)["resultCondition"]["type"], "ranking");
+
+    // One venue with two rooms running the same round at the same time, in
+    // several groups whose codes are unique across rooms.
+    let venues = wcif["schedule"]["venues"].as_array().unwrap();
+    assert_eq!(venues.len(), 1);
+    let rooms = venues[0]["rooms"].as_array().unwrap();
+    assert!(rooms.len() >= 2);
+    let activities = |room: &Value| room["activities"].as_array().unwrap().clone();
+    let parallel = activities(&rooms[0]).iter().any(|a| {
+        activities(&rooms[1]).iter().any(|b| {
+            a["activityCode"] == b["activityCode"]
+                && a["startTime"].as_str() < b["endTime"].as_str()
+                && b["startTime"].as_str() < a["endTime"].as_str()
+        })
+    });
+    assert!(parallel, "no round runs in two rooms at once");
+    assert!(rooms
+        .iter()
+        .flat_map(&activities)
+        .any(|a| a["childActivities"].as_array().unwrap().len() >= 2));
+    let group_codes: Vec<String> = rooms
+        .iter()
+        .flat_map(&activities)
+        .flat_map(|a| a["childActivities"].as_array().unwrap().clone())
+        .map(|g| g["activityCode"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        group_codes.len(),
+        group_codes.iter().collect::<HashSet<_>>().len()
+    );
+    assert!(rooms.iter().flat_map(&activities).any(|a| {
+        a["activityCode"] == "other-checkin" && a["childActivities"].as_array().unwrap().is_empty()
+    }));
+
+    // Activities on both days.
+    assert_eq!(wcif["schedule"]["numberOfDays"], 2);
+    for day in 0..2 {
+        let day = competition.start_date + chrono::Duration::days(day);
+        assert!(
+            competition
+                .activities()
+                .iter()
+                .any(|a| a.start.date() == day),
+            "nothing on {}",
+            day
+        );
+    }
+
+    // Assignments: every code FKMTime maps, and competitors beyond round 1.
+    let persons = wcif["persons"].as_array().unwrap();
+    let codes: HashSet<&str> = persons
+        .iter()
+        .flat_map(|p| p["assignments"].as_array().unwrap())
+        .map(|a| a["assignmentCode"].as_str().unwrap())
+        .collect();
+    for code in [
+        "competitor",
+        "staff-judge",
+        "staff-scrambler",
+        "staff-runner",
+    ] {
+        assert!(codes.contains(code), "no {} assignment", code);
+    }
+    let later_groups: HashSet<u32> = competition
+        .activities()
+        .iter()
+        .filter(|a| a.code.contains("-r2-g"))
+        .map(|a| a.id)
+        .collect();
+    assert!(persons
+        .iter()
+        .flat_map(|p| p["assignments"].as_array().unwrap())
+        .any(|a| {
+            a["assignmentCode"] == "competitor"
+                && later_groups.contains(&(a["activityId"].as_u64().unwrap() as u32))
+        }));
+
+    // Registrations sync drops, newcomers, and someone skipping an event.
+    for status in ["accepted", "pending", "deleted"] {
+        assert!(
+            persons
+                .iter()
+                .any(|p| p["registration"]["status"] == status),
+            "no {} registration",
+            status
+        );
+    }
+    assert!(persons.iter().any(|p| {
+        p["wcaId"].is_null()
+            && p["registration"]["status"] == "accepted"
+            && p["birthdate"].is_string()
+    }));
+    let event_ids: Vec<&str> = competition.events.iter().map(|e| e.info.id).collect();
+    assert!(competition
+        .accepted()
+        .any(|p| event_ids.iter().any(|id| !p.is_registered_for(id))));
+
+    // Station messages depend on judge and competitor sharing a country.
+    let judges: Vec<&Value> = persons
+        .iter()
+        .filter(|p| {
+            p["assignments"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|a| a["assignmentCode"] == "staff-judge")
+        })
+        .collect();
+    assert!(judges.iter().any(|p| p["countryIso2"] == "PL"));
+    assert!(judges.iter().any(|p| p["countryIso2"] != "PL"));
 }

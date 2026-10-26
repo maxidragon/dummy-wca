@@ -86,7 +86,12 @@ fn started_at(now: &str) -> Router {
 #[tokio::test]
 async fn today_is_the_venue_date_at_startup() {
     // 22:30 UTC on 31 December is 23:30 in Warsaw: still 2026.
-    let (_, body) = get(&started_at("2026-12-31T22:30:00Z"), "/dummy/generated", None).await;
+    let (_, body) = get(
+        &started_at("2026-12-31T22:30:00Z"),
+        "/dummy/generated",
+        None,
+    )
+    .await;
     assert_eq!(body["id"], "DummyCubingOpen2026");
     assert_eq!(body["startDate"], "2026-12-31");
     assert_eq!(body["startDatePinned"], false);
@@ -111,7 +116,12 @@ async fn the_competition_does_not_move_while_the_server_runs() {
     ));
     let before = state.competition();
     let app = create_router(state.clone());
-    let (status, wcif) = get(&app, "/api/v0/competitions/DummyCubingOpen2026/wcif/version/2", None).await;
+    let (status, wcif) = get(
+        &app,
+        "/api/v0/competitions/DummyCubingOpen2026/wcif/version/2",
+        None,
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(wcif["schedule"]["startDate"], "2026-12-31");
     assert!(Arc::ptr_eq(&before, &state.competition()));
@@ -119,7 +129,10 @@ async fn the_competition_does_not_move_while_the_server_runs() {
 
 #[tokio::test]
 async fn a_pinned_date_ignores_the_clock() {
-    let state = AppState::started_at(pinned("2027-03-20"), "2026-12-31T23:30:00Z".parse().unwrap());
+    let state = AppState::started_at(
+        pinned("2027-03-20"),
+        "2026-12-31T23:30:00Z".parse().unwrap(),
+    );
     let app = create_router(Arc::new(state));
     let (_, body) = get(&app, "/dummy/generated", None).await;
     assert_eq!(body["id"], "DummyCubingOpen2027");
@@ -500,15 +513,62 @@ async fn reset_by_id_leaves_other_competitions_alone() {
     let empty = json!({ "persons": [{ "registrantId": 1, "assignments": [] }] });
     let generated = format!("/api/v0/competitions/{}/wcif", ID);
     let snapshot = "/api/v0/competitions/WLSMarzec2026/wcif";
-    assert_eq!(call(&app, Method::PATCH, &generated, Some(DELEGATE), Some(empty.clone())).await.0, StatusCode::OK);
-    assert_eq!(call(&app, Method::PATCH, snapshot, Some("token-2013ROGA02"), Some(empty)).await.0, StatusCode::OK);
+    assert_eq!(
+        call(
+            &app,
+            Method::PATCH,
+            &generated,
+            Some(DELEGATE),
+            Some(empty.clone())
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        call(
+            &app,
+            Method::PATCH,
+            snapshot,
+            Some("token-2013ROGA02"),
+            Some(empty)
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
 
-    let (_, cleared) = call(&app, Method::POST, &format!("/dummy/reset?id={}", ID), None, None).await;
+    let (_, cleared) = call(
+        &app,
+        Method::POST,
+        &format!("/dummy/reset?id={}", ID),
+        None,
+        None,
+    )
+    .await;
     assert_eq!(cleared["clearedCompetitions"], 1);
 
-    let assignments = |wcif: &Value| wcif["persons"].as_array().unwrap().iter().find(|p| p["registrantId"] == 1).unwrap()["assignments"].clone();
-    let (_, wcif) = get(&app, "/api/v0/competitions/WLSMarzec2026/wcif/version/2", None).await;
+    let assignments = |wcif: &Value| {
+        wcif["persons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["registrantId"] == 1)
+            .unwrap()["assignments"]
+            .clone()
+    };
+    let (_, wcif) = get(
+        &app,
+        "/api/v0/competitions/WLSMarzec2026/wcif/version/2",
+        None,
+    )
+    .await;
     assert_eq!(assignments(&wcif), json!([]), "the snapshot patch survives");
-    let (_, wcif) = get(&app, &format!("/api/v0/competitions/{}/wcif/version/2", ID), Some(DELEGATE)).await;
+    let (_, wcif) = get(
+        &app,
+        &format!("/api/v0/competitions/{}/wcif/version/2", ID),
+        Some(DELEGATE),
+    )
+    .await;
     assert_ne!(assignments(&wcif), json!([]), "the generated patch is gone");
 }

@@ -5,7 +5,7 @@
 pub struct EventInfo {
     pub id: &'static str,
     pub name: &'static str,
-    /// WCIF round format: `a` (Ao5), `m` (Mo3), `3` (Bo3), `1` (Bo1).
+    /// WCIF round format: `a` (Ao5), `m` (Mo3), `5` (Bo5), `3` (Bo3), `1` (Bo1).
     pub format: &'static str,
     /// `None` for events without a time limit in WCIF (`333fm`, `333mbf`).
     pub time_limit: Option<u32>,
@@ -28,7 +28,7 @@ pub struct EventInfo {
 impl EventInfo {
     pub fn attempts(&self) -> u32 {
         match self.format {
-            "a" => 5,
+            "a" | "5" => 5,
             "m" | "3" => 3,
             "2" => 2,
             _ => 1,
@@ -166,7 +166,8 @@ pub const EVENTS: [EventInfo; 17] = [
     event!(
         "333bf",
         "3x3x3 Blindfolded",
-        "3",
+        // Bo5, as many competitions now hold it and FKMTime's tests use it.
+        "5",
         Some(60000),
         true,
         None,
@@ -214,7 +215,7 @@ pub const EVENTS: [EventInfo; 17] = [
         "a",
         Some(6000),
         false,
-        None,
+        Some((2, 2000)),
         1300,
         1600,
         230,

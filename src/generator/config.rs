@@ -20,8 +20,10 @@ pub struct GeneratorConfig {
     pub seed: u64,
 }
 
+/// Covers every WCIF feature FKMTime's tests rely on; see
+/// `default_competition_covers_what_fkmtime_uses` before changing it.
 const DEFAULT_EVENTS: &str =
-    "333:3,222:2,444:2,pyram:2,skewb:1,333oh:2,clock:1,333bf:1,sq1:1,minx:1";
+    "333:3,222:2,444:2,666:1,333bf:1,333oh:2,clock:1,minx:1,pyram:2,skewb:1,sq1:1,444bf:1";
 
 impl Default for GeneratorConfig {
     fn default() -> Self {

@@ -90,11 +90,13 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | `GENERATED_START_DATE` | today in the venue timezone, at server start | `YYYY-MM-DD`. Without it, the date is taken once when the server starts; restart it to move the competition to the new today. |
 | `GENERATED_DAYS` | `2` | 1 to 4. |
 | `GENERATED_COMPETITORS` | `60` | 2 to 1000 registrations; about 90% are accepted. |
-| `GENERATED_EVENTS` | `333:3,222:2,444:2,pyram:2,skewb:1,333oh:2,clock:1,333bf:1,sq1:1,minx:1` | Events with their number of rounds (1 to 4). Rounds are dropped when there are too few competitors for them under the WCA Regulations. |
+| `GENERATED_EVENTS` | `333:3,222:2,444:2,666:1,333bf:1,333oh:2,clock:1,minx:1,pyram:2,skewb:1,sq1:1,444bf:1` | Events with their number of rounds (1 to 4). Rounds are dropped when there are too few competitors for them under the WCA Regulations. |
 | `GENERATED_ROOMS` | `2` | 1 to 4. |
 | `GENERATED_TIMEZONE` | `Europe/Warsaw` | Venue timezone; it also sets the host country and currency. Schedules keep their local times across DST changes. |
 | `GENERATED_SEED` | `1` | Change it to get different people. |
 | `PORT` | `3000` | Port to listen on. |
+
+The defaults are chosen so that FKMTime can run its tests without any overrides. They include an Ao5 round without a cutoff, Ao5 and Mo3 rounds with cutoffs, Bo5 and Bo3 rounds with cumulative time limits, an event with three rounds, several groups per round, two rooms running a round at the same time, all four assignment codes (later rounds included), pending and deleted registrations, newcomers, and judges from the host country and from abroad. `default_competition_covers_what_fkmtime_uses` in `src/generator/tests.rs` pins this list.
 
 ### "Today"
 
