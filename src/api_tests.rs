@@ -605,20 +605,43 @@ async fn created_competition_is_served_and_managed() {
     let (status, _) = submit(&app, "/dummy/competitions", SMALL).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    let (status, wcif) = get(&app, "/api/v0/competitions/SmallTestOpen2026/wcif/version/2", Some(DELEGATE)).await;
+    let (status, wcif) = get(
+        &app,
+        "/api/v0/competitions/SmallTestOpen2026/wcif/version/2",
+        Some(DELEGATE),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(wcif["schedule"]["startDate"], "2026-11-14");
     assert_eq!(wcif["schedule"]["venues"][0]["timezone"], "Europe/Berlin");
-    let events: Vec<&str> = wcif["events"].as_array().unwrap().iter().map(|e| e["id"].as_str().unwrap()).collect();
+    let events: Vec<&str> = wcif["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["id"].as_str().unwrap())
+        .collect();
     assert_eq!(events, ["333", "pyram"]);
     assert_eq!(wcif["persons"].as_array().unwrap().len(), 20);
 
-    let (_, listed) = get(&app, "/api/v0/competitions?managed_by_me=true", Some(DELEGATE)).await;
-    let ids: Vec<&str> = listed.as_array().unwrap().iter().map(|c| c["id"].as_str().unwrap()).collect();
+    let (_, listed) = get(
+        &app,
+        "/api/v0/competitions?managed_by_me=true",
+        Some(DELEGATE),
+    )
+    .await;
+    let ids: Vec<&str> = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_str().unwrap())
+        .collect();
     assert_eq!(ids, [ID, "SmallTestOpen2026"]);
 
     let (_, discovery) = get(&app, "/dummy/generated", None).await;
-    assert_eq!(discovery["id"], ID, "the competition from the settings stays the discovered one");
+    assert_eq!(
+        discovery["id"], ID,
+        "the competition from the settings stays the discovered one"
+    );
 }
 
 #[tokio::test]
@@ -631,14 +654,31 @@ async fn creating_rejects_a_taken_id_and_bad_settings() {
 
     let taken = "name=Dummy+Cubing+Open&start_date=2026-01-05&event_333=1";
     let (status, _) = submit(&app, "/dummy/competitions", taken).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "same id as the competition from the settings");
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "same id as the competition from the settings"
+    );
 
-    let (status, page) = submit(&app, "/dummy/competitions", "name=Other&start_date=2026-11-14&days=9&event_333=1").await;
+    let (status, page) = submit(
+        &app,
+        "/dummy/competitions",
+        "name=Other&start_date=2026-11-14&days=9&event_333=1",
+    )
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(page.contains("Days must be a number from 1 to 4"));
-    assert!(page.contains("value=\"Other\""), "the form keeps what was sent");
+    assert!(
+        page.contains("value=\"Other\""),
+        "the form keeps what was sent"
+    );
 
-    let (status, page) = submit(&app, "/dummy/competitions", "name=Other&start_date=2026-11-14").await;
+    let (status, page) = submit(
+        &app,
+        "/dummy/competitions",
+        "name=Other&start_date=2026-11-14",
+    )
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(page.contains("Pick at least one event"));
 

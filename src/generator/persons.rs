@@ -53,7 +53,12 @@ pub fn people(config: &GeneratorConfig) -> Vec<Person> {
                 gender,
                 // Adults who started competing at 18, matching their WCA ID year.
                 birthdate: birthdate
-                    .with_year(account.wca_id[..4].parse::<i32>().expect("WCA IDs start with a year") - 18)
+                    .with_year(
+                        account.wca_id[..4]
+                            .parse::<i32>()
+                            .expect("WCA IDs start with a year")
+                            - 18,
+                    )
                     .expect("day 1-28 exists in every year"),
                 email: format!("{}@dummy-wca.invalid", account.user_id),
                 registration: registration(index, "accepted"),

@@ -1,4 +1,3 @@
-
 use std::{fs::File, io::BufReader};
 
 pub fn read_json_file(file_path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {

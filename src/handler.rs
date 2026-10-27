@@ -1,17 +1,28 @@
 use std::collections::HashSet;
 
-use axum::{
-    extract::{Path, Query, State}, http::{header, StatusCode}, response::{Html, IntoResponse, Response}, Json
-};
 use askama::Template;
+use axum::{
+    extract::{Path, Query, State},
+    http::{header, StatusCode},
+    response::{Html, IntoResponse, Response},
+    Json,
+};
 
-use axum_extra::{headers::{self, authorization::Bearer}, TypedHeader};
+use axum_extra::{
+    headers::{self, authorization::Bearer},
+    TypedHeader,
+};
 use chrono::NaiveDate;
 use serde_json::{json, Value};
 
-use crate::generator::{names::{self, Account, ACCOUNTS}, wcif::{self, Version}, Competition};
+use crate::generator::{
+    names::{self, Account, ACCOUNTS},
+    wcif::{self, Version},
+    Competition,
+};
 use crate::schema::{
-    ManagedCompetitionsOptions, OauthRequestOptions, OauthTokenRequestOptions, ResetOptions, SearchUsersOptions,
+    ManagedCompetitionsOptions, OauthRequestOptions, OauthTokenRequestOptions, ResetOptions,
+    SearchUsersOptions,
 };
 use crate::state::SharedState;
 
@@ -34,7 +45,10 @@ fn error(status: StatusCode, message: &str) -> (StatusCode, Json<Value>) {
 
 /// Tokens look like `token-<WCA ID>`.
 fn wca_id_from_token(token: &str) -> Option<&str> {
-    token.split_once('-').map(|(_, wca_id)| wca_id).filter(|wca_id| !wca_id.is_empty())
+    token
+        .split_once('-')
+        .map(|(_, wca_id)| wca_id)
+        .filter(|wca_id| !wca_id.is_empty())
 }
 
 impl IntoResponse for AuthorizeTemplate {
@@ -54,34 +68,37 @@ impl IntoResponse for AuthorizeTemplate {
 }
 
 pub async fn code_handler(
-    params: Query<OauthRequestOptions>
+    params: Query<OauthRequestOptions>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let client_id = params.client_id.clone();
     if client_id != "example-application-id" {
-        return Err((
+        Err((
             StatusCode::NOT_FOUND,
             Json(json!({"status": "error","message": "Invalid client_id"})),
-        ));
+        ))
     } else {
         let template = AuthorizeTemplate {
             redirect_uri: params.redirect_uri.clone(),
             accounts: &ACCOUNTS,
         };
-        return Ok(template.into_response());
+        Ok(template.into_response())
     }
 }
 
 pub async fn get_token_handler(
-    Json(body): Json<OauthTokenRequestOptions>
+    Json(body): Json<OauthTokenRequestOptions>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    if body.client_id != "example-application-id" || body.client_secret != "example-secret" || body.grant_type != "authorization_code" {
+    if body.client_id != "example-application-id"
+        || body.client_secret != "example-secret"
+        || body.grant_type != "authorization_code"
+    {
         return Err((
             StatusCode::NOT_FOUND,
             Json(json!({"status": "error","message": "Invalid data"})),
         ));
     }
     let wca_id = body.code.split("-").collect::<Vec<&str>>()[1];
-    return Ok(Json(json!({"access_token": format!("token-{}", wca_id)})));
+    Ok(Json(json!({"access_token": format!("token-{}", wca_id)})))
 }
 
 pub async fn get_me_handler(
@@ -94,9 +111,7 @@ pub async fn get_me_handler(
     };
     let file_path = &format!("data/users/{}/me.json", wca_id);
     match read_json_file(file_path) {
-        Ok(data) => {
-            return Ok(Json(data));
-        }
+        Ok(data) => Ok(Json(data)),
         Err(_) => match generated_user(&state, wca_id) {
             Some(user) => Ok(Json(json!({ "me": user }))),
             None => Err(error(StatusCode::NOT_FOUND, "Something went wrong")),
@@ -137,7 +152,14 @@ fn generated_persons(state: &SharedState) -> Vec<Value> {
         .competitions()
         .iter()
         .flat_map(|competition| wcif::person_entries(competition))
-        .filter(|entry| seen.insert(entry["person"]["wca_id"].as_str().unwrap_or_default().to_string()))
+        .filter(|entry| {
+            seen.insert(
+                entry["person"]["wca_id"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string(),
+            )
+        })
         .collect()
 }
 
@@ -150,7 +172,7 @@ fn snapshot_persons() -> Vec<Value> {
 
 pub async fn search_users_handler(
     State(state): State<SharedState>,
-    Query(params): Query<SearchUsersOptions>
+    Query(params): Query<SearchUsersOptions>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let query = params.q.to_lowercase();
     let matches = |entry: &Value| {
@@ -208,9 +230,7 @@ pub async fn get_competitions_handler(
     let file_path = &format!("data/users/{}/manageable-competitions.json", wca_id);
     match read_json_file(file_path) {
         // Snapshot accounts keep their full, unfiltered lists: FKMTime still imports past snapshots.
-        Ok(data) => {
-            return Ok(Json(data));
-        }
+        Ok(data) => Ok(Json(data)),
         Err(_) => {
             if generated_user(&state, wca_id).is_none() {
                 return Err(error(StatusCode::NOT_FOUND, "Something went wrong"));
@@ -218,7 +238,10 @@ pub async fn get_competitions_handler(
             let listed: Vec<Value> = state
                 .competitions()
                 .iter()
-                .filter(|competition| wcif::manager_role(competition, wca_id).is_some() && within_dates(competition, &params))
+                .filter(|competition| {
+                    wcif::manager_role(competition, wca_id).is_some()
+                        && within_dates(competition, &params)
+                })
                 .map(|competition| wcif::listing(competition))
                 .collect();
             Ok(Json(json!(listed)))
@@ -243,7 +266,7 @@ pub async fn get_public_wcif_handler(
         }
         Err(err) => {
             println!("{}", err);
-            return Err((
+            Err((
                 StatusCode::NOT_FOUND,
                 Json(json!({"status": "error","message": "ID not found"})),
             ))
@@ -260,21 +283,21 @@ pub async fn get_competition_info_handler(
     }
     let file_path = &format!("data/competitions/{}/competition.json", id);
     match read_json_file(file_path) {
-        Ok(data) => {
-            Ok(Json(data))
-        }
-        Err(_) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({"status": "error","message": "ID not found"})),
-            ))
-        }
+        Ok(data) => Ok(Json(data)),
+        Err(_) => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"status": "error","message": "ID not found"})),
+        )),
     }
 }
 
 /// Whether the token's user may read the private WCIF of the generated
 /// competition: its delegates and organizers, and WCA admin teams.
-fn can_manage_generated(state: &SharedState, competition: &Competition, wca_id: &str) -> Result<bool, (StatusCode, Json<Value>)> {
+fn can_manage_generated(
+    state: &SharedState,
+    competition: &Competition,
+    wca_id: &str,
+) -> Result<bool, (StatusCode, Json<Value>)> {
     if wcif::manager_role(competition, wca_id).is_some() {
         return Ok(true);
     }
@@ -364,7 +387,7 @@ pub async fn get_wcif_handler(
         return Err((
             StatusCode::FORBIDDEN,
             Json(json!({"status": "error","message": "Forbidden resource"})),
-        ))
+        ));
     }
     let file_path = &format!("data/competitions/{}/wcif.json", id);
     match read_json_file(file_path) {
@@ -372,29 +395,33 @@ pub async fn get_wcif_handler(
             state.apply_patches(&id, &mut data);
             Ok(Json(data).into_response())
         }
-        Err(_) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({"status": "error","message": "ID not found"})),
-            ));
-        }
+        Err(_) => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"status": "error","message": "ID not found"})),
+        )),
     }
 }
 
 /// Snapshot competitions: listed in the user's manageable competitions, or
 /// the user is in a WCA admin team.
 fn can_manage_snapshot(id: &str, wca_id: &str) -> Result<bool, (StatusCode, Json<Value>)> {
-    let manageable_competitions_file_path = &format!("data/users/{}/manageable-competitions.json", wca_id);
+    let manageable_competitions_file_path =
+        &format!("data/users/{}/manageable-competitions.json", wca_id);
     let user_info_path = &format!("data/users/{}/me.json", wca_id);
     let manageable_competitions = read_json_file(manageable_competitions_file_path)
         .map_err(|_| error(StatusCode::NOT_FOUND, "Something went wrong"))?;
     let listed = manageable_competitions
         .as_array()
-        .is_some_and(|competitions| competitions.iter().any(|competition| competition["id"] == id));
+        .is_some_and(|competitions| {
+            competitions
+                .iter()
+                .any(|competition| competition["id"] == id)
+        });
     if listed {
         return Ok(true);
     }
-    let user_info = read_json_file(user_info_path).map_err(|_| error(StatusCode::NOT_FOUND, "Something went wrong"))?;
+    let user_info = read_json_file(user_info_path)
+        .map_err(|_| error(StatusCode::NOT_FOUND, "Something went wrong"))?;
     Ok(has_admin_team(&user_info))
 }
 
@@ -409,10 +436,20 @@ fn activity_ids(activities: &Value, ids: &mut HashSet<i64>) {
 
 /// Checks a PATCH body against the competition's WCIF and returns the persons
 /// to save. Only `persons` can be patched; `id` and `formatVersion` may be sent.
-fn validate_patch(id: &str, body: &Value, base: &Value) -> Result<Vec<serde_json::Map<String, Value>>, String> {
+fn validate_patch(
+    id: &str,
+    body: &Value,
+    base: &Value,
+) -> Result<Vec<serde_json::Map<String, Value>>, String> {
     let body = body.as_object().ok_or("The body must be a WCIF object")?;
-    if let Some(unsupported) = body.keys().find(|key| !["id", "formatVersion", "persons"].contains(&key.as_str())) {
-        return Err(format!("dummy-wca can only patch persons, not {:?}", unsupported));
+    if let Some(unsupported) = body
+        .keys()
+        .find(|key| !["id", "formatVersion", "persons"].contains(&key.as_str()))
+    {
+        return Err(format!(
+            "dummy-wca can only patch persons, not {:?}",
+            unsupported
+        ));
     }
     if body.get("id").is_some_and(|body_id| body_id != id) {
         return Err(format!("The WCIF id does not match {}", id));
@@ -447,15 +484,22 @@ fn validate_patch(id: &str, body: &Value, base: &Value) -> Result<Vec<serde_json
                 return Err(format!("No person has registrantId {}", registrant_id));
             }
             if let Some(assignments) = person.get("assignments") {
-                for assignment in assignments.as_array().ok_or("assignments must be an array")? {
-                    let activity_id = assignment["activityId"].as_i64().ok_or("Every assignment needs an activityId")?;
+                for assignment in assignments
+                    .as_array()
+                    .ok_or("assignments must be an array")?
+                {
+                    let activity_id = assignment["activityId"]
+                        .as_i64()
+                        .ok_or("Every assignment needs an activityId")?;
                     if !known_activities.contains(&activity_id) {
                         return Err(format!("No activity has id {}", activity_id));
                     }
                     if !assignment["assignmentCode"].is_string() {
                         return Err("Every assignment needs an assignmentCode".to_string());
                     }
-                    if !(assignment["stationNumber"].is_null() || assignment["stationNumber"].is_i64()) {
+                    if !(assignment["stationNumber"].is_null()
+                        || assignment["stationNumber"].is_i64())
+                    {
                         return Err("stationNumber must be a number or null".to_string());
                     }
                 }
@@ -471,7 +515,10 @@ pub async fn patch_wcif_handler(
     bearer_token: Option<TypedHeader<headers::Authorization<Bearer>>>,
     Json(body): Json<Value>,
 ) -> ApiResult {
-    let token_str = bearer_token.as_ref().map(|token| token.token()).unwrap_or_default();
+    let token_str = bearer_token
+        .as_ref()
+        .map(|token| token.token())
+        .unwrap_or_default();
     let Some(wca_id) = wca_id_from_token(token_str) else {
         return Err(error(StatusCode::UNAUTHORIZED, "Unauthorized"));
     };
@@ -494,7 +541,8 @@ pub async fn patch_wcif_handler(
         }
     };
 
-    let persons = validate_patch(&id, &body, &base).map_err(|message| error(StatusCode::BAD_REQUEST, &message))?;
+    let persons = validate_patch(&id, &body, &base)
+        .map_err(|message| error(StatusCode::BAD_REQUEST, &message))?;
     state.save_patch(&id, persons);
     Ok(Json(json!({"status": "Successfully saved WCIF"})).into_response())
 }
@@ -550,22 +598,22 @@ pub async fn get_generated_handler(State(state): State<SharedState>) -> ApiResul
     .into_response())
 }
 
-pub async fn reset_handler(State(state): State<SharedState>, Query(params): Query<ResetOptions>) -> ApiResult {
+pub async fn reset_handler(
+    State(state): State<SharedState>,
+    Query(params): Query<ResetOptions>,
+) -> ApiResult {
     let cleared = state.reset(params.id.as_deref());
     Ok(Json(json!({ "status": "ok", "clearedCompetitions": cleared })).into_response())
 }
 
-pub async fn get_records_handler() -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+pub async fn get_records_handler(
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let file_path = "data/records.json";
     match read_json_file(file_path) {
-        Ok(data) => {
-            return Ok(Json(data));
-        }
-        Err(_) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({"status": "error","message": "Something went wrong"})),
-            ));
-        }
+        Ok(data) => Ok(Json(data)),
+        Err(_) => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"status": "error","message": "Something went wrong"})),
+        )),
     }
 }
