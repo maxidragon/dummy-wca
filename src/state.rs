@@ -16,6 +16,9 @@ pub struct AppState {
     /// competition doesn't move at midnight under a database seeded from it.
     pub started_at: DateTime<Utc>,
     competition: Arc<Competition>,
+    /// Competitions generated from the page at `/` while the server runs,
+    /// oldest first. Kept in memory only, like patches.
+    created: RwLock<Vec<Arc<Competition>>>,
     /// Persons saved with `PATCH .../wcif`, by competition id and registrant id.
     /// Kept in memory only: a restart or `POST /dummy/reset` clears them.
     patches: RwLock<HashMap<String, HashMap<i64, PersonPatch>>>,
@@ -34,6 +37,7 @@ impl AppState {
             config,
             started_at: now,
             competition,
+            created: RwLock::new(Vec::new()),
             patches: RwLock::new(HashMap::new()),
         }
     }
@@ -43,10 +47,50 @@ impl AppState {
         self.competition.clone()
     }
 
-    /// The generated competition, if `id` is its current id.
+    /// Every generated competition: the one from the `GENERATED_*` settings
+    /// first, then those created from the page at `/`.
+    pub fn competitions(&self) -> Vec<Arc<Competition>> {
+        let created = self.created.read().expect("competition lock is never poisoned");
+        std::iter::once(self.competition())
+            .chain(created.iter().cloned())
+            .collect()
+    }
+
+    /// The generated competition with this id.
     pub fn generated(&self, id: &str) -> Option<Arc<Competition>> {
-        let competition = self.competition();
-        (competition.id == id).then_some(competition)
+        self.competitions()
+            .into_iter()
+            .find(|competition| competition.id == id)
+    }
+
+    /// Adds a competition generated at runtime. Fails if its id is taken.
+    pub fn create(&self, competition: Competition) -> Result<Arc<Competition>, String> {
+        let mut created = self.created.write().expect("competition lock is never poisoned");
+        let taken = competition.id == self.competition.id
+            || created.iter().any(|other| other.id == competition.id)
+            || std::path::Path::new("data/competitions").join(&competition.id).exists();
+        if taken {
+            return Err(format!(
+                "A competition with id {} already exists; pick another name or start date",
+                competition.id
+            ));
+        }
+        let competition = Arc::new(competition);
+        created.push(competition.clone());
+        Ok(competition)
+    }
+
+    /// Removes a competition created at runtime, with its patches. The one
+    /// from the settings can't be removed. Returns whether it existed.
+    pub fn remove(&self, id: &str) -> bool {
+        let mut created = self.created.write().expect("competition lock is never poisoned");
+        let before = created.len();
+        created.retain(|competition| competition.id != id);
+        let removed = created.len() != before;
+        if removed {
+            self.reset(Some(id));
+        }
+        removed
     }
 
     pub fn save_patch(&self, competition_id: &str, persons: Vec<PersonPatch>) {

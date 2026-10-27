@@ -3,6 +3,7 @@ use axum::{
     Router,
 };
 
+use crate::dashboard::{create_handler, index_handler, remove_handler};
 use crate::handler::{
     code_handler, get_competition_info_handler, get_competitions_handler, get_generated_handler,
     get_me_handler, get_person_handler, get_public_wcif_handler, get_records_handler, get_token_handler,
@@ -13,6 +14,9 @@ use crate::state::SharedState;
 
 pub fn create_router(state: SharedState) -> Router {
     Router::new()
+        .route("/", get(index_handler))
+        .route("/dummy/competitions", post(create_handler))
+        .route("/dummy/competitions/:id/delete", post(remove_handler))
         .route("/oauth/authorize", get(code_handler))
         .route("/oauth/token", post(get_token_handler))
         .route("/api/v0/me", get(get_me_handler))

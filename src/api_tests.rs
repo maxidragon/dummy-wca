@@ -572,3 +572,92 @@ async fn reset_by_id_leaves_other_competitions_alone() {
     .await;
     assert_ne!(assignments(&wcif), json!([]), "the generated patch is gone");
 }
+
+async fn submit(app: &Router, uri: &str, form: &str) -> (StatusCode, String) {
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri(uri)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(Body::from(form.to_string()))
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    (status, String::from_utf8_lossy(&bytes).into())
+}
+
+const SMALL: &str = "name=Small+Test+Open&start_date=2026-11-14&days=1&competitors=20&rooms=1\
+    &timezone=Europe%2FBerlin&seed=7&event_333=2&event_pyram=1";
+
+#[tokio::test]
+async fn index_lists_generated_and_snapshot_competitions() {
+    let (status, page) = get(&app(), "/", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let page = page.as_str().unwrap();
+    assert!(page.contains(ID));
+    assert!(page.contains("WLSMarzec2026"));
+    assert!(page.contains("name=\"event_333\""));
+}
+
+#[tokio::test]
+async fn created_competition_is_served_and_managed() {
+    let app = app();
+    let (status, _) = submit(&app, "/dummy/competitions", SMALL).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (status, wcif) = get(&app, "/api/v0/competitions/SmallTestOpen2026/wcif/version/2", Some(DELEGATE)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(wcif["schedule"]["startDate"], "2026-11-14");
+    assert_eq!(wcif["schedule"]["venues"][0]["timezone"], "Europe/Berlin");
+    let events: Vec<&str> = wcif["events"].as_array().unwrap().iter().map(|e| e["id"].as_str().unwrap()).collect();
+    assert_eq!(events, ["333", "pyram"]);
+    assert_eq!(wcif["persons"].as_array().unwrap().len(), 20);
+
+    let (_, listed) = get(&app, "/api/v0/competitions?managed_by_me=true", Some(DELEGATE)).await;
+    let ids: Vec<&str> = listed.as_array().unwrap().iter().map(|c| c["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, [ID, "SmallTestOpen2026"]);
+
+    let (_, discovery) = get(&app, "/dummy/generated", None).await;
+    assert_eq!(discovery["id"], ID, "the competition from the settings stays the discovered one");
+}
+
+#[tokio::test]
+async fn creating_rejects_a_taken_id_and_bad_settings() {
+    let app = app();
+    submit(&app, "/dummy/competitions", SMALL).await;
+    let (status, page) = submit(&app, "/dummy/competitions", SMALL).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(page.contains("already exists"));
+
+    let taken = "name=Dummy+Cubing+Open&start_date=2026-01-05&event_333=1";
+    let (status, _) = submit(&app, "/dummy/competitions", taken).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "same id as the competition from the settings");
+
+    let (status, page) = submit(&app, "/dummy/competitions", "name=Other&start_date=2026-11-14&days=9&event_333=1").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(page.contains("Days must be a number from 1 to 4"));
+    assert!(page.contains("value=\"Other\""), "the form keeps what was sent");
+
+    let (status, page) = submit(&app, "/dummy/competitions", "name=Other&start_date=2026-11-14").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(page.contains("Pick at least one event"));
+
+    let crowded = "name=Other&start_date=2026-11-14&days=1&competitors=1000&rooms=1&event_333=4&event_444=4&event_555=4";
+    let (status, page) = submit(&app, "/dummy/competitions", crowded).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(page.contains("the schedule doesn&#x27;t fit"));
+    assert!(!page.contains("GENERATED_"), "errors name the form fields");
+}
+
+#[tokio::test]
+async fn created_competition_can_be_removed_but_not_the_configured_one() {
+    let app = app();
+    submit(&app, "/dummy/competitions", SMALL).await;
+    let (status, _) = submit(&app, "/dummy/competitions/SmallTestOpen2026/delete", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let (status, _) = get(&app, "/api/v0/competitions/SmallTestOpen2026", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let (status, _) = submit(&app, &format!("/dummy/competitions/{}/delete", ID), "").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
