@@ -1,3 +1,4 @@
+mod dashboard;
 mod generator;
 mod handler;
 mod route;
@@ -49,6 +50,7 @@ async fn main() {
         competition.persons.len()
     );
     println!("Server started successfully on port {}", port);
+    println!("Competitions and a form to generate new ones: http://localhost:{}/", port);
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
         .await

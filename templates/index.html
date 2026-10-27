@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Dummy WCA</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
+            th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
+            td.events { font-size: 0.85rem; color: #555; }
+            code { font-size: 0.9rem; }
+            .error { background: #fde8e8; border: 1px solid #e0a0a0; padding: 0.6rem 1rem; border-radius: 4px; }
+            form.create { display: grid; gap: 1rem; }
+            .fields { display: flex; flex-wrap: wrap; gap: 1rem; }
+            .fields label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
+            .fields input, .fields select { padding: 0.3rem; font-size: 1rem; }
+            .fields input[type=number] { width: 6rem; }
+            .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.4rem 1rem; }
+            .event-grid label { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+            .presets button, .presets-competitors button { margin-right: 0.3rem; }
+            form.inline { display: inline; }
+            button.primary { font-size: 1rem; padding: 0.5rem 1.2rem; justify-self: start; }
+        </style>
+    </head>
+    <body>
+        <h1>Dummy WCA</h1>
+
+        <h2>Generated competitions</h2>
+        <p>Sign in as <code>2012VAQR01</code> (delegate) or <code>2015YQVI01</code> (organizer) to manage any of them. New ones live in memory until the server restarts.</p>
+        <table>
+            <tr><th>Id</th><th>Dates</th><th>Competitors</th><th>Rooms</th><th>Events</th><th>WCIF</th><th></th></tr>
+            {% for competition in generated %}
+            <tr>
+                <td><strong>{{ competition.id }}</strong><br>{{ competition.name }}</td>
+                <td>{{ competition.dates }}<br><small>{{ competition.timezone }}</small></td>
+                <td>{{ competition.accepted }} accepted<br><small>{{ competition.competitors }} registered</small></td>
+                <td>{{ competition.rooms }}</td>
+                <td class="events">{{ competition.events }}</td>
+                <td>
+                    <a href="/api/v0/competitions/{{ competition.id }}/wcif/public">public</a> ·
+                    <a href="/api/v0/competitions/{{ competition.id }}/wcif/version/2">v2</a> ·
+                    <a href="/api/v0/competitions/{{ competition.id }}">info</a>
+                </td>
+                <td>
+                    {% if competition.removable %}
+                    <form class="inline" method="post" action="/dummy/competitions/{{ competition.id }}/delete">
+                        <button type="submit">Remove</button>
+                    </form>
+                    {% else %}
+                    <small>from settings</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h2>New competition</h2>
+        {% if !error.is_empty() %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+        <form class="create" method="post" action="/dummy/competitions">
+            <div class="fields">
+                <label>Name (the year is added)
+                    <input name="name" value="{{ form.name }}" required>
+                </label>
+                <label>Start date
+                    <input type="date" name="start_date" value="{{ form.start_date }}" required>
+                </label>
+                <label>Days
+                    <input type="number" name="days" min="1" max="4" value="{{ form.days }}">
+                </label>
+                <label>Rooms
+                    <input type="number" name="rooms" min="1" max="4" value="{{ form.rooms }}">
+                </label>
+                <label>Timezone
+                    <select name="timezone">
+                        {% for timezone in form.timezones %}
+                        <option{% if timezone.selected %} selected{% endif %}>{{ timezone.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Seed
+                    <input type="number" name="seed" min="0" value="{{ form.seed }}">
+                </label>
+            </div>
+            <div class="fields">
+                <label>Competitors (registrations, about 90% accepted)
+                    <input type="number" id="competitors" name="competitors" min="2" max="1000" value="{{ form.competitors }}">
+                </label>
+                <div class="presets-competitors">
+                    {% for preset in [10, 30, 60, 120, 250, 500] %}
+                    <button type="button" onclick="document.getElementById('competitors').value = {{ preset }}">{{ preset }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            <fieldset>
+                <legend>Events and rounds</legend>
+                <p class="presets">
+                    <button type="button" onclick="setRounds(() => 'default')">Defaults</button>
+                    <button type="button" onclick="setRounds(() => 1)">All, 1 round</button>
+                    <button type="button" onclick="setRounds(id => id === '333' ? 1 : 0)">Only 3x3</button>
+                    <button type="button" onclick="setRounds(() => 0)">None</button>
+                </p>
+                <div class="event-grid">
+                    {% for event in form.events %}
+                    <label>{{ event.name }}
+                        <select name="event_{{ event.id }}" data-event="{{ event.id }}" data-default="{{ event.default_rounds }}">
+                            <option value="0"{% if event.rounds == 0 %} selected{% endif %}>—</option>
+                            <option value="1"{% if event.rounds == 1 %} selected{% endif %}>1 round</option>
+                            <option value="2"{% if event.rounds == 2 %} selected{% endif %}>2 rounds</option>
+                            <option value="3"{% if event.rounds == 3 %} selected{% endif %}>3 rounds</option>
+                            <option value="4"{% if event.rounds == 4 %} selected{% endif %}>4 rounds</option>
+                        </select>
+                    </label>
+                    {% endfor %}
+                </div>
+                <p><small>Rounds are dropped when there are too few competitors for them.</small></p>
+            </fieldset>
+            <button class="primary" type="submit">Generate</button>
+        </form>
+
+        <h2>Snapshot competitions</h2>
+        <table>
+            <tr><th>Id</th><th>Name</th><th>Dates</th><th>WCIF</th></tr>
+            {% for competition in snapshots %}
+            <tr>
+                <td><strong>{{ competition.id }}</strong></td>
+                <td>{{ competition.name }}</td>
+                <td>{{ competition.dates }}</td>
+                <td>
+                    <a href="/api/v0/competitions/{{ competition.id }}/wcif/public">public</a> ·
+                    <a href="/api/v0/competitions/{{ competition.id }}">info</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <script>
+            function setRounds(pick) {
+                for (const select of document.querySelectorAll('select[data-event]')) {
+                    const rounds = pick(select.dataset.event);
+                    select.value = rounds === 'default' ? select.dataset.default : rounds;
+                }
+            }
+        </script>
+    </body>
+</html>

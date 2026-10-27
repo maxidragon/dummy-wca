@@ -6,6 +6,20 @@ This project was mainly created for testing the [FKMTime](https://github.com/FKM
 
 Besides the snapshot competitions in `data/`, it serves a [generated test competition](#generated-test-competition): invented people, results and schedule, starting on the day the server starts by default.
 
+## Competitions page
+
+Open `http://localhost:3000/` to see every competition the server knows (generated and snapshot) and to generate a new one: pick a name, start date, number of competitors, rooms, days, timezone, seed, and rounds per event, then press **Generate**. The new competition is served straight away by every endpoint below. The delegate and organizer accounts manage it, and it shows up in their `managed_by_me` list.
+
+Competitions made this way live in memory until the server restarts. Each one can be removed from the page. The one from the `GENERATED_*` settings stays and is still the one `GET /dummy/generated` returns. To get different settings, generate a new competition. Existing ones aren't edited.
+
+The form posts `application/x-www-form-urlencoded` to `POST /dummy/competitions`, so a script can do the same:
+
+```bash
+curl -d 'name=Small Test Open&start_date=2026-11-14&competitors=20&event_333=2&event_pyram=1' localhost:3000/dummy/competitions
+```
+
+Fields not sent keep the defaults from [Settings](#settings). Events are `event_<id>=<rounds>`, and the id is the name plus the year, as below.
+
 ## Endpoints
 
 ### `GET /api/v0/competitions?managed_by_me=true`

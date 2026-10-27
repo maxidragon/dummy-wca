@@ -97,7 +97,7 @@ pub async fn get_me_handler(
         Ok(data) => {
             return Ok(Json(data));
         }
-        Err(_) => match wcif::user_by_wca_id(&state.competition(), wca_id) {
+        Err(_) => match generated_user(&state, wca_id) {
             Some(user) => Ok(Json(json!({ "me": user }))),
             None => Err(error(StatusCode::NOT_FOUND, "Something went wrong")),
         },
@@ -115,11 +115,30 @@ pub async fn get_user_by_wca_id_handler(
             data["me"] = json!({});
             Ok(Json(data))
         }
-        Err(_) => match wcif::user_by_wca_id(&state.competition(), &id) {
+        Err(_) => match generated_user(&state, &id) {
             Some(user) => Ok(Json(json!({ "user": user }))),
             None => Err(error(StatusCode::NOT_FOUND, "ID not found")),
         },
     }
+}
+
+/// The user behind a WCA ID in any generated competition.
+fn generated_user(state: &SharedState, wca_id: &str) -> Option<Value> {
+    state
+        .competitions()
+        .iter()
+        .find_map(|competition| wcif::user_by_wca_id(competition, wca_id))
+}
+
+/// Everyone with a WCA ID in the generated competitions, once each.
+fn generated_persons(state: &SharedState) -> Vec<Value> {
+    let mut seen = HashSet::new();
+    state
+        .competitions()
+        .iter()
+        .flat_map(|competition| wcif::person_entries(competition))
+        .filter(|entry| seen.insert(entry["person"]["wca_id"].as_str().unwrap_or_default().to_string()))
+        .collect()
 }
 
 fn snapshot_persons() -> Vec<Value> {
@@ -142,7 +161,7 @@ pub async fn search_users_handler(
     };
     let found: Vec<Value> = snapshot_persons()
         .into_iter()
-        .chain(wcif::person_entries(&state.competition()))
+        .chain(generated_persons(&state))
         .filter(|entry| matches(entry))
         .collect();
     Ok(Json(json!(found)))
@@ -154,7 +173,7 @@ pub async fn get_person_handler(
 ) -> ApiResult {
     snapshot_persons()
         .into_iter()
-        .chain(wcif::person_entries(&state.competition()))
+        .chain(generated_persons(&state))
         .find(|entry| {
             entry["person"]["wca_id"]
                 .as_str()
@@ -193,12 +212,15 @@ pub async fn get_competitions_handler(
             return Ok(Json(data));
         }
         Err(_) => {
-            let competition = state.competition();
-            if wcif::user_by_wca_id(&competition, wca_id).is_none() {
+            if generated_user(&state, wca_id).is_none() {
                 return Err(error(StatusCode::NOT_FOUND, "Something went wrong"));
             }
-            let managed = wcif::manager_role(&competition, wca_id).is_some() && within_dates(&competition, &params);
-            let listed: Vec<Value> = if managed { vec![wcif::listing(&competition)] } else { vec![] };
+            let listed: Vec<Value> = state
+                .competitions()
+                .iter()
+                .filter(|competition| wcif::manager_role(competition, wca_id).is_some() && within_dates(competition, &params))
+                .map(|competition| wcif::listing(competition))
+                .collect();
             Ok(Json(json!(listed)))
         }
     }
@@ -252,7 +274,7 @@ pub async fn get_competition_info_handler(
 
 /// Whether the token's user may read the private WCIF of the generated
 /// competition: its delegates and organizers, and WCA admin teams.
-fn can_manage_generated(competition: &Competition, wca_id: &str) -> Result<bool, (StatusCode, Json<Value>)> {
+fn can_manage_generated(state: &SharedState, competition: &Competition, wca_id: &str) -> Result<bool, (StatusCode, Json<Value>)> {
     if wcif::manager_role(competition, wca_id).is_some() {
         return Ok(true);
     }
@@ -262,7 +284,7 @@ fn can_manage_generated(competition: &Competition, wca_id: &str) -> Result<bool,
     if let Ok(user_info) = read_json_file(&format!("data/users/{}/me.json", wca_id)) {
         return Ok(has_admin_team(&user_info));
     }
-    if wcif::user_by_wca_id(competition, wca_id).is_some() {
+    if generated_user(state, wca_id).is_some() {
         return Ok(false);
     }
     Err(error(StatusCode::UNAUTHORIZED, "Unauthorized"))
@@ -298,7 +320,7 @@ fn generated_wcif(
     let Some(wca_id) = wca_id_from_token(bearer_token.token()) else {
         return Err(error(StatusCode::UNAUTHORIZED, "Unauthorized"));
     };
-    if !can_manage_generated(competition, wca_id)? {
+    if !can_manage_generated(state, competition, wca_id)? {
         return Err(error(StatusCode::FORBIDDEN, "Forbidden resource"));
     }
     Ok(Json(data).into_response())
@@ -456,7 +478,7 @@ pub async fn patch_wcif_handler(
 
     let base = match state.generated(&id) {
         Some(competition) => {
-            if !can_manage_generated(&competition, wca_id)? {
+            if !can_manage_generated(&state, &competition, wca_id)? {
                 return Err(error(StatusCode::FORBIDDEN, "Forbidden resource"));
             }
             wcif::wcif(&competition, Version::V2)
