@@ -6,9 +6,9 @@ use axum::{
 use crate::dashboard::{create_handler, index_handler, remove_handler};
 use crate::handler::{
     code_handler, get_competition_info_handler, get_competitions_handler, get_generated_handler,
-    get_me_handler, get_person_handler, get_public_wcif_handler, get_records_handler, get_token_handler,
-    get_user_by_wca_id_handler, get_wcif_handler, get_wcif_v2_handler, patch_wcif_handler, reset_handler,
-    search_users_handler,
+    get_me_handler, get_person_handler, get_public_wcif_handler, get_records_handler,
+    get_token_handler, get_user_by_wca_id_handler, get_wcif_handler, get_wcif_v2_handler,
+    patch_wcif_handler, reset_handler, search_users_handler,
 };
 use crate::state::SharedState;
 

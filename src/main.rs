@@ -11,7 +11,10 @@ mod api_tests;
 
 use std::sync::Arc;
 
-use axum::http::{header::{AUTHORIZATION, CONTENT_TYPE}, Method};
+use axum::http::{
+    header::{AUTHORIZATION, CONTENT_TYPE},
+    Method,
+};
 
 use tokio::net::TcpListener;
 
@@ -50,7 +53,10 @@ async fn main() {
         competition.persons.len()
     );
     println!("Server started successfully on port {}", port);
-    println!("Competitions and a form to generate new ones: http://localhost:{}/", port);
+    println!(
+        "Competitions and a form to generate new ones: http://localhost:{}/",
+        port
+    );
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
         .await

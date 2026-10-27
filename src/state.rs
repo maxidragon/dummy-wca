@@ -50,7 +50,10 @@ impl AppState {
     /// Every generated competition: the one from the `GENERATED_*` settings
     /// first, then those created from the page at `/`.
     pub fn competitions(&self) -> Vec<Arc<Competition>> {
-        let created = self.created.read().expect("competition lock is never poisoned");
+        let created = self
+            .created
+            .read()
+            .expect("competition lock is never poisoned");
         std::iter::once(self.competition())
             .chain(created.iter().cloned())
             .collect()
@@ -65,10 +68,15 @@ impl AppState {
 
     /// Adds a competition generated at runtime. Fails if its id is taken.
     pub fn create(&self, competition: Competition) -> Result<Arc<Competition>, String> {
-        let mut created = self.created.write().expect("competition lock is never poisoned");
+        let mut created = self
+            .created
+            .write()
+            .expect("competition lock is never poisoned");
         let taken = competition.id == self.competition.id
             || created.iter().any(|other| other.id == competition.id)
-            || std::path::Path::new("data/competitions").join(&competition.id).exists();
+            || std::path::Path::new("data/competitions")
+                .join(&competition.id)
+                .exists();
         if taken {
             return Err(format!(
                 "A competition with id {} already exists; pick another name or start date",
@@ -83,7 +91,10 @@ impl AppState {
     /// Removes a competition created at runtime, with its patches. The one
     /// from the settings can't be removed. Returns whether it existed.
     pub fn remove(&self, id: &str) -> bool {
-        let mut created = self.created.write().expect("competition lock is never poisoned");
+        let mut created = self
+            .created
+            .write()
+            .expect("competition lock is never poisoned");
         let before = created.len();
         created.retain(|competition| competition.id != id);
         let removed = created.len() != before;

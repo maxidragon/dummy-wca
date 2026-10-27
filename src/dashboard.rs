@@ -125,7 +125,8 @@ fn snapshot_rows() -> Vec<SnapshotRow> {
     ids.sort();
     ids.into_iter()
         .map(|id| {
-            let info = read_json_file(&format!("data/competitions/{}/competition.json", id)).unwrap_or_default();
+            let info = read_json_file(&format!("data/competitions/{}/competition.json", id))
+                .unwrap_or_default();
             SnapshotRow {
                 name: info["name"].as_str().unwrap_or(&id).to_string(),
                 dates: dates(
@@ -147,11 +148,18 @@ fn dates(start: &str, end: &str) -> String {
 }
 
 fn default_form(state: &SharedState) -> FormValues {
-    let taken: Vec<String> = state.competitions().iter().map(|competition| competition.name.clone()).collect();
+    let taken: Vec<String> = state
+        .competitions()
+        .iter()
+        .map(|competition| competition.name.clone())
+        .collect();
     let name = NAMES
         .iter()
         .find(|name| !taken.iter().any(|taken| taken.starts_with(*name)))
-        .map_or_else(|| format!("Test Open {}", taken.len()), |name| name.to_string());
+        .map_or_else(
+            || format!("Test Open {}", taken.len()),
+            |name| name.to_string(),
+        );
     let defaults = GeneratorConfig::default();
     let default_rounds = |id: &str| {
         defaults
@@ -196,7 +204,12 @@ fn timezones(selected: &str) -> Vec<TimezoneOption> {
 /// The form again, filled in with what was sent.
 fn sent_form(state: &SharedState, fields: &HashMap<String, String>) -> FormValues {
     let mut form = default_form(state);
-    let field = |key: &str, default: &str| fields.get(key).cloned().unwrap_or_else(|| default.to_string());
+    let field = |key: &str, default: &str| {
+        fields
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| default.to_string())
+    };
     form.name = field("name", &form.name);
     form.start_date = field("start_date", &form.start_date);
     form.days = field("days", &form.days);
@@ -258,7 +271,9 @@ fn form_wording(message: &str) -> String {
         ("GENERATED_EVENTS", "Events"),
     ]
     .iter()
-    .fold(message.to_string(), |message, (variable, field)| message.replace(variable, field))
+    .fold(message.to_string(), |message, (variable, field)| {
+        message.replace(variable, field)
+    })
 }
 
 pub async fn index_handler(State(state): State<SharedState>) -> Response {
@@ -300,6 +315,10 @@ pub async fn remove_handler(State(state): State<SharedState>, Path(id): Path<Str
     if state.remove(&id) {
         Redirect::to("/").into_response()
     } else {
-        (StatusCode::NOT_FOUND, "Only competitions created from this page can be removed").into_response()
+        (
+            StatusCode::NOT_FOUND,
+            "Only competitions created from this page can be removed",
+        )
+            .into_response()
     }
 }
