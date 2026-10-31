@@ -44,7 +44,13 @@ Returns the version 2 WCIF of a competition. For the generated competition, a re
 
 ### `PATCH /api/v0/competitions/:id/wcif`
 
-Saves `persons` (merged by `registrantId`) in memory. Every later WCIF request for that competition includes them, until a restart or `POST /dummy/reset`. The body may contain `id`, `formatVersion` and `persons`. Unknown registrant or activity ids give 400.
+Saves `persons` (merged by `registrantId`) and replaces `schedule`, `events` and `extensions` in memory. Every later WCIF request for that competition includes them, until a restart or `POST /dummy/reset`. The body may also contain `id` and `formatVersion`, and assignments may point at groups in the same body's `schedule`. Anything else, or an unknown registrant or activity id, gives 400.
+
+Requires the `Authorization` header to be set to `Bearer <token>` of a user who can manage the competition.
+
+### `PUT /api/v0/competitions/wcif/check`
+
+Answers as `PATCH` would for the competition in the body's `id`, and saves nothing.
 
 Requires the `Authorization` header to be set to `Bearer <token>` of a user who can manage the competition.
 
@@ -62,7 +68,7 @@ Redirects to the page that asks to choose the user.
 
 ### `POST /oauth/token`
 
-Returns an access token that can be used to authenticate requests.
+Takes a JSON or form-encoded body, and returns an access token that can be used to authenticate requests, with `expires_in`.
 
 ### `GET /api/v0/records`
 

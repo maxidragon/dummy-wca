@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use chrono::{DateTime, Utc};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::generator::{self, Competition, GeneratorConfig};
 
 pub type SharedState = Arc<AppState>;
 
-type PersonPatch = serde_json::Map<String, Value>;
+type PersonPatch = Map<String, Value>;
 
 pub struct AppState {
     pub config: GeneratorConfig,
@@ -22,6 +22,8 @@ pub struct AppState {
     /// Persons saved with `PATCH .../wcif`, by competition id and registrant id.
     /// Kept in memory only: a restart or `POST /dummy/reset` clears them.
     patches: RwLock<HashMap<String, HashMap<i64, PersonPatch>>>,
+    /// `schedule`, `events` and `extensions` saved the same way, by competition.
+    document_patches: RwLock<HashMap<String, Map<String, Value>>>,
 }
 
 impl AppState {
@@ -39,6 +41,7 @@ impl AppState {
             competition,
             created: RwLock::new(Vec::new()),
             patches: RwLock::new(HashMap::new()),
+            document_patches: RwLock::new(HashMap::new()),
         }
     }
 
@@ -104,7 +107,20 @@ impl AppState {
         removed
     }
 
-    pub fn save_patch(&self, competition_id: &str, persons: Vec<PersonPatch>) {
+    pub fn save_patch(
+        &self,
+        competition_id: &str,
+        persons: Vec<PersonPatch>,
+        document: Map<String, Value>,
+    ) {
+        if !document.is_empty() {
+            self.document_patches
+                .write()
+                .expect("patch lock is never poisoned")
+                .entry(competition_id.to_string())
+                .or_default()
+                .extend(document);
+        }
         let mut patches = self.patches.write().expect("patch lock is never poisoned");
         let saved = patches.entry(competition_id.to_string()).or_default();
         for person in persons {
@@ -117,6 +133,14 @@ impl AppState {
 
     /// Applies saved patches to a WCIF of that competition.
     pub fn apply_patches(&self, competition_id: &str, wcif: &mut Value) {
+        let documents = self
+            .document_patches
+            .read()
+            .expect("patch lock is never poisoned");
+        if let (Some(saved), Some(document)) = (documents.get(competition_id), wcif.as_object_mut())
+        {
+            document.extend(saved.clone());
+        }
         let patches = self.patches.read().expect("patch lock is never poisoned");
         let (Some(saved), Some(persons)) =
             (patches.get(competition_id), wcif["persons"].as_array_mut())
@@ -147,12 +171,21 @@ impl AppState {
     /// competitions had patches.
     pub fn reset(&self, competition_id: Option<&str>) -> usize {
         let mut patches = self.patches.write().expect("patch lock is never poisoned");
+        let mut documents = self
+            .document_patches
+            .write()
+            .expect("patch lock is never poisoned");
         match competition_id {
-            Some(id) => usize::from(patches.remove(id).is_some()),
+            Some(id) => {
+                let had_documents = documents.remove(id).is_some();
+                usize::from(patches.remove(id).is_some() || had_documents)
+            }
             None => {
-                let count = patches.len();
+                let ids: std::collections::HashSet<_> =
+                    patches.keys().chain(documents.keys()).cloned().collect();
                 patches.clear();
-                count
+                documents.clear();
+                ids.len()
             }
         }
     }
