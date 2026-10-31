@@ -2,10 +2,10 @@ use std::collections::HashSet;
 
 use askama::Template;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{FromRequest, Path, Query, Request, State},
     http::{header, StatusCode},
     response::{Html, IntoResponse, Response},
-    Json,
+    Form, Json,
 };
 
 use axum_extra::{
@@ -38,6 +38,8 @@ struct AuthorizeTemplate {
 }
 
 const ADMIN_TEAMS: [&str; 3] = ["wst", "wrt", "wcat"];
+const TOKEN_LIFETIME_SECONDS: u32 = 7200;
+const PATCHABLE_KEYS: [&str; 3] = ["schedule", "events", "extensions"];
 
 fn error(status: StatusCode, message: &str) -> (StatusCode, Json<Value>) {
     (status, Json(json!({"status": "error","message": message})))
@@ -85,9 +87,31 @@ pub async fn code_handler(
     }
 }
 
+/// The WCA takes both: FKMTime sends JSON, and OAuth clients send a form.
+async fn token_request(
+    request: Request,
+) -> Result<OauthTokenRequestOptions, (StatusCode, Json<Value>)> {
+    let is_form = request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("application/x-www-form-urlencoded"));
+    let invalid = |_| error(StatusCode::BAD_REQUEST, "Invalid data");
+    if is_form {
+        let Form(body) = Form::from_request(request, &())
+            .await
+            .map_err(|_| error(StatusCode::BAD_REQUEST, "Invalid data"))?;
+        Ok(body)
+    } else {
+        let Json(body) = Json::from_request(request, &()).await.map_err(invalid)?;
+        Ok(body)
+    }
+}
+
 pub async fn get_token_handler(
-    Json(body): Json<OauthTokenRequestOptions>,
+    request: Request,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let body = token_request(request).await?;
     if body.client_id != "example-application-id"
         || body.client_secret != "example-secret"
         || body.grant_type != "authorization_code"
@@ -98,7 +122,11 @@ pub async fn get_token_handler(
         ));
     }
     let wca_id = body.code.split("-").collect::<Vec<&str>>()[1];
-    Ok(Json(json!({"access_token": format!("token-{}", wca_id)})))
+    Ok(Json(json!({
+        "access_token": format!("token-{}", wca_id),
+        "token_type": "Bearer",
+        "expires_in": TOKEN_LIFETIME_SECONDS,
+    })))
 }
 
 pub async fn get_me_handler(
@@ -434,28 +462,43 @@ fn activity_ids(activities: &Value, ids: &mut HashSet<i64>) {
     }
 }
 
-/// Checks a PATCH body against the competition's WCIF and returns the persons
-/// to save. Only `persons` can be patched; `id` and `formatVersion` may be sent.
-fn validate_patch(
-    id: &str,
-    body: &Value,
-    base: &Value,
-) -> Result<Vec<serde_json::Map<String, Value>>, String> {
+/// What a PATCH body would change, once checked.
+struct ValidPatch {
+    persons: Vec<serde_json::Map<String, Value>>,
+    /// `schedule`, `events` and `extensions`, which replace the WCIF's own.
+    document: serde_json::Map<String, Value>,
+}
+
+/// Checks a PATCH body against the competition's WCIF as it stands. `id` and
+/// `formatVersion` may be sent; everything else must be something to save.
+fn validate_patch(id: &str, body: &Value, base: &Value) -> Result<ValidPatch, String> {
     let body = body.as_object().ok_or("The body must be a WCIF object")?;
-    if let Some(unsupported) = body
-        .keys()
-        .find(|key| !["id", "formatVersion", "persons"].contains(&key.as_str()))
-    {
-        return Err(format!(
-            "dummy-wca can only patch persons, not {:?}",
-            unsupported
-        ));
+    if let Some(unsupported) = body.keys().find(|key| {
+        !["id", "formatVersion", "persons"].contains(&key.as_str())
+            && !PATCHABLE_KEYS.contains(&key.as_str())
+    }) {
+        return Err(format!("dummy-wca can not patch {:?}", unsupported));
     }
     if body.get("id").is_some_and(|body_id| body_id != id) {
         return Err(format!("The WCIF id does not match {}", id));
     }
+    if let Some(schedule) = body.get("schedule") {
+        if !schedule["venues"].is_array() {
+            return Err("schedule needs venues".to_string());
+        }
+    }
+    for key in ["events", "extensions"] {
+        if body.get(key).is_some_and(|value| !value.is_array()) {
+            return Err(format!("{} must be an array", key));
+        }
+    }
+    let document = PATCHABLE_KEYS
+        .iter()
+        .filter_map(|key| body.get(*key).map(|value| (key.to_string(), value.clone())))
+        .collect();
+    let empty = Vec::new();
     let persons = match body.get("persons") {
-        None => return Ok(Vec::new()),
+        None => &empty,
         Some(persons) => persons.as_array().ok_or("persons must be an array")?,
     };
 
@@ -465,14 +508,16 @@ fn validate_patch(
         .flatten()
         .filter_map(|person| person["registrantId"].as_i64())
         .collect();
+    // Groups pushed in the same PATCH are what its assignments point at.
+    let schedule = body.get("schedule").unwrap_or(&base["schedule"]);
     let mut known_activities = HashSet::new();
-    for venue in base["schedule"]["venues"].as_array().into_iter().flatten() {
+    for venue in schedule["venues"].as_array().into_iter().flatten() {
         for room in venue["rooms"].as_array().into_iter().flatten() {
             activity_ids(&room["activities"], &mut known_activities);
         }
     }
 
-    persons
+    let persons = persons
         .iter()
         .map(|person| {
             let person = person.as_object().ok_or("Every person must be an object")?;
@@ -506,15 +551,17 @@ fn validate_patch(
             }
             Ok(person.clone())
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(ValidPatch { persons, document })
 }
 
-pub async fn patch_wcif_handler(
-    State(state): State<SharedState>,
-    Path(id): Path<String>,
+/// Who is asking and what they sent, checked as for a real save.
+fn checked_patch(
+    state: &SharedState,
+    id: &str,
     bearer_token: Option<TypedHeader<headers::Authorization<Bearer>>>,
-    Json(body): Json<Value>,
-) -> ApiResult {
+    body: &Value,
+) -> Result<ValidPatch, (StatusCode, Json<Value>)> {
     let token_str = bearer_token
         .as_ref()
         .map(|token| token.token())
@@ -523,9 +570,9 @@ pub async fn patch_wcif_handler(
         return Err(error(StatusCode::UNAUTHORIZED, "Unauthorized"));
     };
 
-    let base = match state.generated(&id) {
+    let mut base = match state.generated(id) {
         Some(competition) => {
-            if !can_manage_generated(&state, &competition, wca_id)? {
+            if !can_manage_generated(state, &competition, wca_id)? {
                 return Err(error(StatusCode::FORBIDDEN, "Forbidden resource"));
             }
             wcif::wcif(&competition, Version::V2)
@@ -534,17 +581,41 @@ pub async fn patch_wcif_handler(
             let base = read_json_file(&format!("data/competitions/{}/wcif_v2.json", id))
                 .or_else(|_| read_json_file(&format!("data/competitions/{}/wcif.json", id)))
                 .map_err(|_| error(StatusCode::NOT_FOUND, "ID not found"))?;
-            if !can_manage_snapshot(&id, wca_id)? {
+            if !can_manage_snapshot(id, wca_id)? {
                 return Err(error(StatusCode::FORBIDDEN, "Forbidden resource"));
             }
             base
         }
     };
 
-    let persons = validate_patch(&id, &body, &base)
-        .map_err(|message| error(StatusCode::BAD_REQUEST, &message))?;
-    state.save_patch(&id, persons);
+    state.apply_patches(id, &mut base);
+    validate_patch(id, body, &base).map_err(|message| error(StatusCode::BAD_REQUEST, &message))
+}
+
+pub async fn patch_wcif_handler(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+    bearer_token: Option<TypedHeader<headers::Authorization<Bearer>>>,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let patch = checked_patch(&state, &id, bearer_token, &body)?;
+    state.save_patch(&id, patch.persons, patch.document);
     Ok(Json(json!({"status": "Successfully saved WCIF"})).into_response())
+}
+
+/// `PUT /api/v0/competitions/wcif/check`: says whether a PATCH would be
+/// accepted, and saves nothing. The competition comes from the body's `id`.
+pub async fn check_wcif_handler(
+    State(state): State<SharedState>,
+    bearer_token: Option<TypedHeader<headers::Authorization<Bearer>>>,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let id = body["id"]
+        .as_str()
+        .ok_or_else(|| error(StatusCode::BAD_REQUEST, "The WCIF needs an id"))?
+        .to_string();
+    checked_patch(&state, &id, bearer_token, &body)?;
+    Ok(Json(json!({"status": "The WCIF is valid"})).into_response())
 }
 
 /// Test helper: what the generated competition is, and which accounts can

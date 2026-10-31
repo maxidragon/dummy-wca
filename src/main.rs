@@ -41,7 +41,7 @@ async fn main() {
         CorsLayer::new()
             .allow_origin(Any)
             .allow_headers([AUTHORIZATION, CONTENT_TYPE])
-            .allow_methods([Method::GET, Method::POST, Method::PATCH]),
+            .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::PUT]),
     );
 
     let competition = state.competition();

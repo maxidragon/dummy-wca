@@ -413,6 +413,141 @@ async fn patch_saves_assignments_until_reset() {
 }
 
 #[tokio::test]
+async fn sign_in_accepts_a_form_and_says_when_the_token_expires() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/oauth/token")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(Body::from(
+                    "client_id=example-application-id&client_secret=example-secret\
+                     &grant_type=authorization_code&code=code-2012VAQR01\
+                     &redirect_uri=http%3A%2F%2Flocalhost%2Fcallback",
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["access_token"], "token-2012VAQR01");
+    assert!(body["expires_in"].as_u64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn check_says_what_a_patch_would_do_and_saves_nothing() {
+    let app = app();
+    let (_, before) = get(
+        &app,
+        &format!("/api/v0/competitions/{}/wcif", ID),
+        Some(DELEGATE),
+    )
+    .await;
+    let body = json!({"id": ID, "extensions": [{"id": "example.Extension"}]});
+
+    let (status, _) = call(
+        &app,
+        Method::PUT,
+        "/api/v0/competitions/wcif/check",
+        Some(DELEGATE),
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, after) = get(
+        &app,
+        &format!("/api/v0/competitions/{}/wcif", ID),
+        Some(DELEGATE),
+    )
+    .await;
+    assert_eq!(before, after);
+
+    let (status, _) = call(
+        &app,
+        Method::PUT,
+        "/api/v0/competitions/wcif/check",
+        Some(OUTSIDER),
+        Some(body),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = call(
+        &app,
+        Method::PUT,
+        "/api/v0/competitions/wcif/check",
+        Some(DELEGATE),
+        Some(json!({"id": ID, "persons": "nobody"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn patch_saves_schedule_with_assignments_to_its_new_groups() {
+    let app = app();
+    let uri = format!("/api/v0/competitions/{}/wcif", ID);
+    let (_, wcif) = get(&app, &uri, Some(DELEGATE)).await;
+    let mut schedule = wcif["schedule"].clone();
+    let new_group = 987_654;
+    schedule["venues"][0]["rooms"][0]["activities"][0]["childActivities"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id": new_group, "name": "New group", "activityCode": "333-r1-g9"}));
+    let registrant = wcif["persons"][0]["registrantId"].clone();
+
+    let (status, _) = call(
+        &app,
+        Method::PATCH,
+        &uri,
+        Some(DELEGATE),
+        Some(json!({
+            "schedule": schedule,
+            "extensions": [{"id": "example.Extension"}],
+            "persons": [{
+                "registrantId": registrant,
+                "assignments": [{
+                    "activityId": new_group,
+                    "assignmentCode": "competitor",
+                    "stationNumber": null,
+                }],
+            }],
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (_, saved) = get(&app, &uri, Some(DELEGATE)).await;
+    assert_eq!(saved["schedule"], schedule);
+    assert_eq!(saved["extensions"][0]["id"], "example.Extension");
+    assert_eq!(
+        saved["persons"][0]["assignments"][0]["activityId"],
+        new_group
+    );
+
+    // A later PATCH of persons alone still knows the group.
+    let (status, _) = call(
+        &app,
+        Method::PATCH,
+        &uri,
+        Some(DELEGATE),
+        Some(json!({"persons": [{
+            "registrantId": registrant,
+            "assignments": [{"activityId": new_group, "assignmentCode": "staff-judge"}],
+        }]})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = call(&app, Method::POST, "/dummy/reset", None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, reset) = get(&app, &uri, Some(DELEGATE)).await;
+    assert_eq!(reset["schedule"], wcif["schedule"]);
+}
+
+#[tokio::test]
 async fn patch_rejects_bad_bodies() {
     let app = app();
     let (person, group) = competitor_and_group(&app).await;
