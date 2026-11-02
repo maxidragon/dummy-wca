@@ -64,7 +64,7 @@ Returns the current user information. Requires the `Authorization` header to be 
 
 ### `GET /oauth/authorize`
 
-Redirects to the page that asks to choose the user.
+Redirects to the page that asks to choose the user. Choosing one sends the browser to `redirect_uri` with `code`, and with `state` if the request had one.
 
 ### `POST /oauth/token`
 
@@ -85,6 +85,10 @@ Returns one person.
 ### `GET /api/v0/users/:id`
 
 Returns the user with the given WCA ID.
+
+### `GET /api/v0/users/search/:query`
+
+Returns `{ "result": [...] }` with the users whose name or WCA ID contains the query, ignoring case.
 
 ### `GET /dummy/generated`
 

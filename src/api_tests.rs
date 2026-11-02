@@ -643,6 +643,29 @@ async fn authorize_page_offers_the_generated_accounts() {
 }
 
 #[tokio::test]
+async fn authorize_page_keeps_the_state_for_the_redirect() {
+    let uri = "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=public&response_type=code&client_id=example-application-id&state=abc-123";
+    let (status, page) = get(&app(), uri, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(page.as_str().unwrap().contains("abc-123"));
+}
+
+#[tokio::test]
+async fn users_search_wraps_matching_users_in_a_result() {
+    let app = app();
+    let (status, found) = get(&app, "/api/v0/users/search/VAQR", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let result = found["result"].as_array().unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["wca_id"], "2012VAQR01");
+    assert_eq!(result[0]["id"], 9000001);
+    assert!(result[0]["name"].is_string());
+
+    let (_, found) = get(&app, "/api/v0/users/search/nobody-like-this", None).await;
+    assert_eq!(found["result"], json!([]));
+}
+
+#[tokio::test]
 async fn reset_by_id_leaves_other_competitions_alone() {
     let app = app();
     let empty = json!({ "persons": [{ "registrantId": 1, "assignments": [] }] });

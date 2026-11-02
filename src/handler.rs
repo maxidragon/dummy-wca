@@ -34,6 +34,7 @@ type ApiResult = Result<Response, (StatusCode, Json<Value>)>;
 #[template(path = "authorize.html")]
 struct AuthorizeTemplate {
     redirect_uri: String,
+    state: String,
     accounts: &'static [Account],
 }
 
@@ -81,6 +82,7 @@ pub async fn code_handler(
     } else {
         let template = AuthorizeTemplate {
             redirect_uri: params.redirect_uri.clone(),
+            state: params.state.clone().unwrap_or_default(),
             accounts: &ACCOUNTS,
         };
         Ok(template.into_response())
@@ -198,23 +200,38 @@ fn snapshot_persons() -> Vec<Value> {
         .unwrap_or_default()
 }
 
-pub async fn search_users_handler(
-    State(state): State<SharedState>,
-    Query(params): Query<SearchUsersOptions>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query = params.q.to_lowercase();
+/// Persons whose name or WCA ID contains the query, ignoring case.
+fn find_persons(state: &SharedState, query: &str) -> Vec<Value> {
+    let query = query.to_lowercase();
     let matches = |entry: &Value| {
         let person = &entry["person"];
         let name = person["name"].as_str().unwrap_or_default();
         let wca_id = person["wca_id"].as_str().unwrap_or_default();
         name.to_lowercase().contains(&query) || wca_id.to_lowercase().contains(&query)
     };
-    let found: Vec<Value> = snapshot_persons()
+    snapshot_persons()
         .into_iter()
-        .chain(generated_persons(&state))
+        .chain(generated_persons(state))
         .filter(|entry| matches(entry))
+        .collect()
+}
+
+pub async fn search_users_handler(
+    State(state): State<SharedState>,
+    Query(params): Query<SearchUsersOptions>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    Ok(Json(json!(find_persons(&state, &params.q))))
+}
+
+pub async fn search_users_by_path_handler(
+    State(state): State<SharedState>,
+    Path(query): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let result: Vec<Value> = find_persons(&state, &query)
+        .into_iter()
+        .map(|entry| entry["person"].clone())
         .collect();
-    Ok(Json(json!(found)))
+    Ok(Json(json!({ "result": result })))
 }
 
 pub async fn get_person_handler(
