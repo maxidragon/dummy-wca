@@ -7,6 +7,7 @@ pub struct OauthRequestOptions {
     pub scope: String,
     pub response_type: String,
     pub client_id: String,
+    pub state: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

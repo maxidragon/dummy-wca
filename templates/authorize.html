@@ -12,6 +12,9 @@
         <div id="redirect_uri" style="display: none;">
             {{ redirect_uri }}
         </div>
+        <div id="state" style="display: none;">
+            {{ state }}
+        </div>
         <ul>
             <li>Maksymilian Gala (2022GALA01) - Organizer of SLSFinal2024, Delegate of CFLBrzeziny2025</li>
             <li>Jonatan Kłosko (2013KOSK01) - WST Member</li>
@@ -33,9 +36,15 @@
         {% endfor %}
         <script>
             const redirect_uri = document.getElementById('redirect_uri').innerText;
+            const state = document.getElementById('state').innerText.trim();
             console.log(redirect_uri);
             function login(wcaId) {
-                window.location.href = `${redirect_uri.trim()}?code=code-${wcaId}`;
+                const url = new URL(redirect_uri.trim());
+                url.searchParams.set('code', `code-${wcaId}`);
+                if (state) {
+                    url.searchParams.set('state', state);
+                }
+                window.location.href = url.toString();
             }
         </script>
     </body>
