@@ -40,7 +40,16 @@ fn live_router() -> Router<SharedState> {
     let rounds = "/api/v1/competitions/:id/live/rounds";
     Router::new()
         .route(rounds, get(live::rounds_info))
-        .route(&format!("{}/:round_id", rounds), get(live::round_results))
+        .route(
+            &format!("{}/:round_id", rounds),
+            get(live::round_results)
+                .post(live::writes::add_or_update_result)
+                .patch(live::writes::add_or_update_result),
+        )
+        .route(
+            &format!("{}/:round_id/batch", rounds),
+            post(live::writes::batch_add_or_update_results),
+        )
         .route(&format!("{}/:round_id/open", rounds), put(live::open_round))
         .route(
             &format!("{}/:round_id/clear", rounds),
@@ -109,5 +118,9 @@ pub fn create_router(state: SharedState) -> Router {
         .route("/api/v0/records", get(get_records_handler))
         .route("/dummy/generated", get(get_generated_handler))
         .route("/dummy/reset", post(reset_handler))
+        .route(
+            "/dummy/competitions/:id/live/drop_next_write",
+            post(live::writes::drop_next_write),
+        )
         .with_state(state)
 }

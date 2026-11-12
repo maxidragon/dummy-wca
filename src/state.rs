@@ -20,6 +20,8 @@ pub struct Settings {
     /// Requests per minute per client to each `/api/v1` controller, like the
     /// WCA's 60. 0 turns the limit off.
     pub api_rate_limit_per_minute: u32,
+    /// How long after its 202 a live results write is applied.
+    pub live_result_delay_ms: u64,
 }
 
 impl Default for Settings {
@@ -49,6 +51,7 @@ impl Settings {
         Ok(Settings {
             token_lifetime_seconds: number("TOKEN_LIFETIME_SECONDS", 7200, 1)?,
             api_rate_limit_per_minute: number("API_RATE_LIMIT_PER_MINUTE", 60, 0)?,
+            live_result_delay_ms: number("LIVE_RESULT_DELAY_MS", 500, 0)?.into(),
         })
     }
 }
