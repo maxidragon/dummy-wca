@@ -143,6 +143,8 @@ Every live endpoint but `GET .../rounds/:round_id` needs `scoretaking_software` 
 
 Writes are checked, answered **202** `{"status": "ok"}`, and applied `LIVE_RESULT_DELAY_MS` later (default 500), in the order received, as the WCA's background jobs do. Read the round again to see them. They answer 422 `{"status": ...}` when the round isn't open (`round is not open`), the competitor isn't in it (`user is not part of this round`), or a value is 0 (`Values cannot be 0, please omit them instead`); in a batch the error also names the `registration_id`. Writes to a locked round are still applied, without changing who proceeds.
 
+To watch the results, open `/dummy/competitions/:id/live` (not a WCA page; linked from the competitions page). It shows every round's state and the chosen round's results, with who proceeds highlighted, and refreshes every 5 seconds.
+
 To test what a client does when a write is lost, `POST /dummy/competitions/:id/live/drop_next_write` (not a WCA endpoint) makes that competition's next accepted write answer 202 and never be applied. Each call drops one more write; `POST /dummy/reset` forgets them.
 
 A round is `pending` until every result of the previous round is complete (all attempts, or the cutoff missed), `blocked` if the previous rounds had too few competitors for it under regulation 9m, `ready`, `open` once it has results, and `locked` once the next round opens. Who proceeds (`advancing`) follows the next round's `resultCondition` and the 75% rule (in a final, it marks the podium), and stops changing once the round is locked. Linked rounds, records, podiums and live updates over WebSockets aren't emulated.
