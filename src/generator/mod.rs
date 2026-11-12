@@ -53,6 +53,7 @@ pub fn generate(config: &GeneratorConfig, start_date: NaiveDate) -> Competition 
         registration_open: local(28, 19, 0),
         registration_close: local(7, 23, 59),
         competitor_limit: accepted.div_ceil(10) * 10,
+        scoretaking_software: config.scoretaking_software,
     }
 }
 

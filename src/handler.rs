@@ -669,6 +669,7 @@ pub async fn get_generated_handler(State(state): State<SharedState>) -> ApiResul
         "startDatePinned": state.config.start_date.is_some(),
         "serverStartedAt": state.started_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         "seed": state.config.seed,
+        "scoretakingSoftware": competition.scoretaking_software,
         "competitors": competition.persons.len(),
         "acceptedCompetitors": competition.accepted().count(),
         "rooms": competition.venue.rooms.len(),

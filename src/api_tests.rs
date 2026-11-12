@@ -859,3 +859,48 @@ async fn created_competition_can_be_removed_but_not_the_configured_one() {
     let (status, _) = submit(&app, &format!("/dummy/competitions/{}/delete", ID), "").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn competitions_say_how_results_are_entered() {
+    let app = app();
+    let (status, info) = get(&app, &format!("/api/v0/competitions/{}", ID), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(info["scoretaking_software"], "internal");
+
+    let form =
+        "name=Paper+Test+Open&start_date=2026-11-14&event_333=1&scoretaking_software=external";
+    assert_eq!(
+        submit(&app, "/dummy/competitions", form).await.0,
+        StatusCode::SEE_OTHER
+    );
+    let (_, info) = get(&app, "/api/v0/competitions/PaperTestOpen2026", None).await;
+    assert_eq!(info["scoretaking_software"], "external");
+
+    let form = "name=Other&start_date=2026-11-14&event_333=1&scoretaking_software=paper";
+    let (status, page) = submit(&app, "/dummy/competitions", form).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(page.contains("Scoretaking software must be one of"));
+}
+
+#[tokio::test]
+async fn wcif_persons_carry_their_registration_id() {
+    let (_, wcif) = get(
+        &app(),
+        &format!("/api/v0/competitions/{}/wcif/public", ID),
+        None,
+    )
+    .await;
+    let ids: Vec<i64> = wcif["persons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|person| {
+            person["registration"]["wcaRegistrationId"]
+                .as_i64()
+                .unwrap()
+        })
+        .collect();
+    let unique: std::collections::HashSet<_> = ids.iter().collect();
+    assert!(!ids.is_empty());
+    assert_eq!(unique.len(), ids.len(), "registration ids are unique");
+}

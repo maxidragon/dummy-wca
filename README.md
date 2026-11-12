@@ -8,7 +8,7 @@ Besides the snapshot competitions in `data/`, it serves a [generated test compet
 
 ## Competitions page
 
-Open `http://localhost:3000/` to see every competition the server knows (generated and snapshot) and to generate a new one: pick a name, start date, number of competitors, rooms, days, timezone, seed, and rounds per event, then press **Generate**. The new competition is served straight away by every endpoint below. The delegate and organizer accounts manage it, and it shows up in their `managed_by_me` list.
+Open `http://localhost:3000/` to see every competition the server knows (generated and snapshot) and to generate a new one: pick a name, start date, number of competitors, rooms, days, timezone, seed, scoretaking software, and rounds per event, then press **Generate**. The new competition is served straight away by every endpoint below. The delegate and organizer accounts manage it, and it shows up in their `managed_by_me` list.
 
 Competitions made this way live in memory until the server restarts. Each one can be removed from the page. The one from the `GENERATED_*` settings stays and is still the one `GET /dummy/generated` returns. To get different settings, generate a new competition. Existing ones aren't edited.
 
@@ -30,7 +30,7 @@ For the generated competition's accounts, `start` and `end` filter like on the W
 
 ### `GET /api/v0/competitions/:id`
 
-Returns the information of a competition.
+Returns the information of a competition. Like on the WCA, it includes `scoretaking_software`: `external`, `wca_live` or `internal`. Generated competitions take it from `GENERATED_SCORETAKING_SOFTWARE` or the page's form.
 
 ### `GET /api/v0/competitions/:id/wcif`
 
@@ -118,6 +118,7 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | `GENERATED_ROOMS` | `2` | 1 to 4. |
 | `GENERATED_TIMEZONE` | `Europe/Warsaw` | Venue timezone; it also sets the host country and currency. Schedules keep their local times across DST changes. |
 | `GENERATED_SEED` | `1` | Change it to get different people. |
+| `GENERATED_SCORETAKING_SOFTWARE` | `internal` | `external`, `wca_live` or `internal`, as the WCA's `scoretaking_software`. The WCA's own default is `external`; this one defaults to `internal` so the generated competition can be scoretaken through the live results API. |
 | `PORT` | `3000` | Port to listen on. |
 
 The defaults are chosen so that FKMTime can run its tests without any overrides. They include an Ao5 round without a cutoff, Ao5 and Mo3 rounds with cutoffs, Bo5 and Bo3 rounds with cumulative time limits, an event with three rounds, several groups per round, two rooms running a round at the same time, all four assignment codes (later rounds included), pending and deleted registrations, newcomers, and judges from the host country and from abroad. `default_competition_covers_what_fkmtime_uses` in `src/generator/tests.rs` pins this list.

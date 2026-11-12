@@ -399,6 +399,7 @@ pub fn competition_info(competition: &Competition) -> Value {
         "announced_at": open,
         "cancelled_at": null,
         "competitor_limit": competition.competitor_limit,
+        "scoretaking_software": competition.scoretaking_software,
         "use_wca_registration": true,
         "on_the_spot_registration": false,
         "base_entry_fee_lowest_denomination": competition.host.base_entry_fee,
