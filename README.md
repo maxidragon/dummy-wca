@@ -119,13 +119,35 @@ Adds the user in `{"user_id": ...}` (a no-op if they already are one) and answer
 
 Removes a scoretaker and answers them, or `null` if they weren't one. Needs a manager.
 
+### Live results: `/api/v1/competitions/:id/live/rounds`
+
+dummy-wca emulates the WCA's integrated live results for the generated competitions. Rounds come from the WCIF (after patches): their format, cutoff and `participationRuleset` (who proceeds from the previous round). Results live in memory until a restart or `POST /dummy/reset`.
+
+Every live endpoint but `GET .../rounds/:round_id` needs `scoretaking_software` to be `internal` (403 `Scoretaking software needs to be set to Internal`). Those that change something need a signed-in manager or scoretaker (403 `Score taking privileges required`). Unknown rounds, registrations and results give 404.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /rounds/:round_id` | Public. The WCIF round with `round_id`, `competitors`, `results` (with `attempts` as `{value, attempt_number}`, `best`, `average`, `global_pos`, `advancing`, `advancing_questionable`, ...), `completed_competitors` and `state_hash`, which changes whenever a result does. |
+| `GET /rounds` | Public. `{"rounds": [...]}`, each with its `state` and counts. |
+| `PUT /rounds/:round_id/open` | Opens a `ready` round: an empty result for everyone accepted for the event (first round) or everyone proceeding from the previous round, whose results get locked. 400 if `pending`, `blocked` or already open. |
+| `PUT /rounds/:round_id/clear` | Removes every attempt in an open round. |
+| `DELETE /rounds/:round_id/close` | Removes an open round's results, only if nobody has a complete result yet, and unlocks the previous round. |
+| `DELETE /rounds/:round_id/:registration_id` | Quits a competitor without attempts. With `advancing_ids` (query `advancing_ids[]=` or JSON body) in a later round, they must match who should proceed instead, or 400 with `should_advance`; those then join the round. |
+| `DELETE /rounds/:round_id/bulk_quit` | The same for `registration_ids`. |
+| `GET /rounds/:round_id/next_if_quit?registration_id=` | Who would proceed in that competitor's place: nobody, one, or several when tied. |
+| `GET /rounds/:round_id/addable_competitors` | Who may be added: anyone accepted (first round) or anyone from the previous round. |
+| `PUT /rounds/:round_id/:registration_id` | Adds a competitor to the round if it is open. |
+| `PUT /rounds/:round_id/:registration_id/clear` | Removes one competitor's attempts. |
+
+A round is `pending` until every result of the previous round is complete (all attempts, or the cutoff missed), `blocked` if the previous rounds had too few competitors for it under regulation 9m, `ready`, `open` once it has results, and `locked` once the next round opens. Who proceeds (`advancing`) follows the next round's `resultCondition` and the 75% rule (in a final, it marks the podium), and stops changing once the round is locked. Linked rounds, records, podiums and live updates over WebSockets aren't emulated.
+
 ### `GET /dummy/generated`
 
 Not a WCA endpoint. Returns the generated competition's current id, dates and settings, and the accounts that can sign in to it (with their `code-…` and `token-…`).
 
 ### `POST /dummy/reset`
 
-Not a WCA endpoint. Clears saved patches, registration changes and scoretakers for all competitions, or for one with `?id=<competition id>`.
+Not a WCA endpoint. Clears saved patches, registration changes, scoretakers and live results for all competitions, or for one with `?id=<competition id>`.
 
 ## Generated test competition
 

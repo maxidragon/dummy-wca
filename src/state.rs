@@ -81,6 +81,8 @@ pub struct AppState {
     request_counts: Mutex<HashMap<String, (Instant, u32)>>,
     /// Competitions created so far, so each gets its own registration ids.
     created_count: AtomicU64,
+    /// Live results entered through the live results API.
+    pub live: crate::live::Store,
 }
 
 /// Registration ids of competitions created at runtime are moved this far
@@ -110,6 +112,7 @@ impl AppState {
             scoretakers: RwLock::new(HashMap::new()),
             request_counts: Mutex::new(HashMap::new()),
             created_count: AtomicU64::new(0),
+            live: crate::live::Store::default(),
         }
     }
 
@@ -359,9 +362,11 @@ impl AppState {
         patches.get(competition_id).map_or(0, HashMap::len)
     }
 
-    /// Drops saved patches, registration changes and scoretakers for one
-    /// competition, or for all. Returns how many competitions had any.
+    /// Drops saved patches, registration changes, scoretakers and live
+    /// results for one competition, or for all. Returns how many competitions
+    /// had any.
     pub fn reset(&self, competition_id: Option<&str>) -> usize {
+        let live = self.live.reset(competition_id);
         let mut patches = self.patches.write().expect("patch lock is never poisoned");
         let mut documents = self
             .document_patches
@@ -381,7 +386,11 @@ impl AppState {
                 let had_events = events.remove(id).is_some();
                 let had_scoretakers = scoretakers.remove(id).is_some();
                 usize::from(
-                    patches.remove(id).is_some() || had_documents || had_events || had_scoretakers,
+                    patches.remove(id).is_some()
+                        || had_documents
+                        || had_events
+                        || had_scoretakers
+                        || !live.is_empty(),
                 )
             }
             None => {
@@ -390,6 +399,7 @@ impl AppState {
                     .chain(documents.keys())
                     .chain(events.keys())
                     .chain(scoretakers.keys())
+                    .chain(live.iter())
                     .cloned()
                     .collect();
                 patches.clear();
