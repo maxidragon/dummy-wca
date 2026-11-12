@@ -13,7 +13,7 @@ use tower::ServiceExt;
 
 use crate::generator::GeneratorConfig;
 use crate::route::create_router;
-use crate::state::AppState;
+use crate::state::{AppState, Settings};
 use crate::utils::read_json_file;
 
 const ID: &str = "DummyCubingOpen2026";
@@ -158,9 +158,9 @@ async fn sign_in_lists_the_competition_for_its_managers() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(token["access_token"], DELEGATE);
+    let signed_in = token["access_token"].as_str().unwrap();
 
-    let (status, me) = get(&app, "/api/v0/me", Some(DELEGATE)).await;
+    let (status, me) = get(&app, "/api/v0/me", Some(signed_in)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(me["me"]["id"], 9_000_001);
     assert_eq!(me["me"]["delegate_status"], "delegate");
@@ -168,7 +168,7 @@ async fn sign_in_lists_the_competition_for_its_managers() {
 
     let uri =
         "/api/v0/competitions?managed_by_me=true&start=2026-10-19T12:00:00.000Z&sort=start_date";
-    let (status, listed) = get(&app, uri, Some(DELEGATE)).await;
+    let (status, listed) = get(&app, uri, Some(signed_in)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(listed[0]["id"], ID);
     assert_eq!(listed[0]["delegates"][0]["id"], 9_000_001);
@@ -412,29 +412,87 @@ async fn patch_saves_assignments_until_reset() {
     assert_ne!(find(&wcif), expected);
 }
 
-#[tokio::test]
-async fn sign_in_accepts_a_form_and_says_when_the_token_expires() {
-    let response = app()
+async fn token_request(app: &Router, form: &str) -> (StatusCode, Value) {
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(Method::POST)
                 .uri("/oauth/token")
                 .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(
-                    "client_id=example-application-id&client_secret=example-secret\
-                     &grant_type=authorization_code&code=code-2012VAQR01\
-                     &redirect_uri=http%3A%2F%2Flocalhost%2Fcallback",
-                ))
+                .body(Body::from(format!(
+                    "client_id=example-application-id&client_secret=example-secret&{}",
+                    form
+                )))
                 .unwrap(),
         )
         .await
         .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
-    let body: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(body["access_token"], "token-2012VAQR01");
-    assert!(body["expires_in"].as_u64().unwrap() > 0);
+    (status, serde_json::from_slice(&bytes).unwrap())
+}
+
+#[tokio::test]
+async fn sign_in_accepts_a_form_and_says_when_the_token_expires() {
+    let app = app();
+    let (status, body) = token_request(
+        &app,
+        "grant_type=authorization_code&code=code-2012VAQR01\
+         &redirect_uri=http%3A%2F%2Flocalhost%2Fcallback",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["token_type"], "Bearer");
+    assert_eq!(body["expires_in"], 7200);
+    assert!(body["refresh_token"].is_string());
+    let token = body["access_token"].as_str().unwrap();
+    let (status, me) = get(&app, "/api/v0/me", Some(token)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(me["me"]["wca_id"], "2012VAQR01");
+}
+
+#[tokio::test]
+async fn a_refresh_token_gives_a_new_token_once() {
+    let app = app();
+    let (_, first) = token_request(
+        &app,
+        "grant_type=authorization_code&code=code-2012VAQR01-public,manage_registrations",
+    )
+    .await;
+    assert_eq!(first["scope"], "public manage_registrations");
+    let refresh = first["refresh_token"].as_str().unwrap();
+
+    let form = format!("grant_type=refresh_token&refresh_token={}", refresh);
+    let (status, second) = token_request(&app, &form).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(second["scope"], "public manage_registrations");
+    assert_ne!(second["refresh_token"], first["refresh_token"]);
+    let token = second["access_token"].as_str().unwrap();
+    assert_eq!(get(&app, "/api/v0/me", Some(token)).await.0, StatusCode::OK);
+
+    let (status, body) = token_request(&app, &form).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "invalid_grant");
+}
+
+#[tokio::test]
+async fn tokens_expire_after_the_configured_lifetime() {
+    let settings =
+        Settings::from_vars(|key| (key == "TOKEN_LIFETIME_SECONDS").then(|| "60".to_string()))
+            .unwrap();
+    let app = create_router(Arc::new(
+        AppState::new(pinned("2026-10-26")).with_settings(settings),
+    ));
+    let (_, body) = token_request(&app, "grant_type=authorization_code&code=code-2012VAQR01").await;
+    assert_eq!(body["expires_in"], 60);
+
+    let expired = crate::auth::access_token("2012VAQR01", &["public"], 1);
+    assert_eq!(
+        get(&app, "/api/v0/me", Some(&expired)).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert!(Settings::from_vars(|_| Some("0".to_string())).is_err());
 }
 
 #[tokio::test]
@@ -640,6 +698,24 @@ async fn authorize_page_offers_the_generated_accounts() {
     assert!(page.contains("<title>Dummy WCA - authorize</title>"));
     assert!(page.contains("login('2012VAQR01')"));
     assert!(page.contains("login('2013ROGA02')"));
+    assert!(
+        page.contains("code-${wcaId}-public`"),
+        "the code carries the scope"
+    );
+}
+
+#[tokio::test]
+async fn authorize_page_passes_requested_scopes_and_refuses_unknown_ones() {
+    let uri = "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=public+manage_registrations&response_type=code&client_id=example-application-id";
+    let (status, page) = get(&app(), uri, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(page
+        .as_str()
+        .unwrap()
+        .contains("code-${wcaId}-public,manage_registrations`"));
+
+    let uri = "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=everything&response_type=code&client_id=example-application-id";
+    assert_eq!(get(&app(), uri, None).await.0, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

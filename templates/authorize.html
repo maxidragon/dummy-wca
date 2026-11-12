@@ -40,7 +40,7 @@
             console.log(redirect_uri);
             function login(wcaId) {
                 const url = new URL(redirect_uri.trim());
-                url.searchParams.set('code', `code-${wcaId}`);
+                url.searchParams.set('code', `code-${wcaId}{{ code_suffix }}`);
                 if (state) {
                     url.searchParams.set('state', state);
                 }

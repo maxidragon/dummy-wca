@@ -1,3 +1,4 @@
+mod auth;
 mod dashboard;
 mod generator;
 mod handler;
@@ -20,7 +21,7 @@ use tokio::net::TcpListener;
 
 use generator::GeneratorConfig;
 use route::create_router;
-use state::AppState;
+use state::{AppState, Settings};
 use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
@@ -31,7 +32,11 @@ async fn main() {
         eprintln!("Invalid generated competition settings: {}", err);
         std::process::exit(1);
     });
-    let state = Arc::new(AppState::new(config));
+    let settings = Settings::from_env().unwrap_or_else(|err| {
+        eprintln!("Invalid settings: {}", err);
+        std::process::exit(1);
+    });
+    let state = Arc::new(AppState::new(config).with_settings(settings));
     if let Err(err) = generator::check(&state.config, state.competition().start_date) {
         eprintln!("Invalid generated competition settings: {}", err);
         std::process::exit(1);

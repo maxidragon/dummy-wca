@@ -4,7 +4,7 @@ use serde::Deserialize;
 #[allow(dead_code)]
 pub struct OauthRequestOptions {
     pub redirect_uri: String,
-    pub scope: String,
+    pub scope: Option<String>,
     pub response_type: String,
     pub client_id: String,
     pub state: Option<String>,
@@ -13,10 +13,13 @@ pub struct OauthRequestOptions {
 #[derive(Deserialize, Debug)]
 #[allow(dead_code)]
 pub struct OauthTokenRequestOptions {
-    pub code: String,
+    /// For `grant_type=authorization_code`.
+    pub code: Option<String>,
+    /// For `grant_type=refresh_token`.
+    pub refresh_token: Option<String>,
     pub client_id: String,
     pub client_secret: String,
-    pub redirect_uri: String,
+    pub redirect_uri: Option<String>,
     pub grant_type: String,
 }
 
