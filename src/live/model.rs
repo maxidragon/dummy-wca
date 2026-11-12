@@ -421,6 +421,15 @@ fn orderable(value: i64) -> (bool, bool, bool, i64) {
     (value == 0, value == -2, value == -1, value)
 }
 
+fn is_complete_value(value: i64) -> bool {
+    value > 0
+}
+
+/// Rounds half away from zero, like Ruby's `round`.
+fn round_half_away(value: f64) -> i64 {
+    value.round() as i64
+}
+
 impl Round {
     fn values_for_sorting(&self, result: &LiveResult) -> Vec<(bool, bool, bool, i64)> {
         if self.format.sort_by_average {
@@ -455,6 +464,90 @@ impl Round {
 
     pub fn is_complete(&self, result: &LiveResult) -> bool {
         result.attempts.len() == self.format.expected_solve_count || self.didnt_meet_cutoff(result)
+    }
+
+    /// `Resultable#compute_correct_best`.
+    pub fn compute_best(&self, values: &[i64]) -> i64 {
+        values
+            .iter()
+            .copied()
+            .filter(|value| *value != 0)
+            .min_by_key(|value| orderable(*value))
+            .unwrap_or(0)
+    }
+
+    fn should_compute_average(&self) -> bool {
+        match self.format.id {
+            'a' | 'm' => true,
+            '5' => self.event_id == "333bf",
+            '3' => ["333ft", "333fm", "333bf", "444bf", "555bf"].contains(&self.event_id.as_str()),
+            _ => false,
+        }
+    }
+
+    /// `Resultable#compute_correct_average`.
+    pub fn compute_average(&self, values: &[i64]) -> i64 {
+        let expected = self.format.expected_solve_count;
+        let unskipped = values.iter().filter(|value| **value != 0).count();
+        let all_dns = values.iter().all(|value| *value == -2 || *value == 0);
+        let invalid_count = if self.cutoff.is_some() {
+            unskipped > expected
+        } else {
+            unskipped != expected
+        };
+        if all_dns || invalid_count || unskipped < expected || !self.should_compute_average() {
+            return 0;
+        }
+        let mut sorted: Vec<(usize, i64)> = values
+            .iter()
+            .copied()
+            .enumerate()
+            .filter(|(_, value)| *value != 0)
+            .collect();
+        sorted.sort_by_key(|(index, value)| (orderable(*value), *index));
+        let mut trimmed: Vec<usize> = sorted[..self.format.trim_fastest_n]
+            .iter()
+            .map(|(index, _)| *index)
+            .collect();
+        trimmed.extend(
+            sorted[sorted.len() - self.format.trim_slowest_n..]
+                .iter()
+                .map(|(index, _)| *index),
+        );
+        let counting: Vec<i64> = values
+            .iter()
+            .copied()
+            .enumerate()
+            .filter(|(index, _)| *index < expected && !trimmed.contains(index))
+            .map(|(_, value)| value)
+            .collect();
+        if counting.iter().any(|value| !is_complete_value(*value)) {
+            return -1;
+        }
+        let sum: i64 = counting.iter().sum();
+        let mean = sum as f64 / counting.len() as f64;
+        if self.event_id == "333fm" {
+            return round_half_away(100.0 * mean);
+        }
+        if mean > 60_000.0 {
+            round_half_away(mean / 100.0) * 100
+        } else {
+            round_half_away(mean)
+        }
+    }
+
+    /// Sets a result's attempts and recomputes its best and average. Returns
+    /// whether either changed, which is when the WCA re-ranks the round.
+    pub fn set_attempts(&self, result: &mut LiveResult, mut attempts: Vec<Attempt>) -> bool {
+        attempts.sort_by_key(|attempt| attempt.attempt_number);
+        attempts.dedup_by_key(|attempt| attempt.attempt_number);
+        let values: Vec<i64> = attempts.iter().map(|attempt| attempt.value).collect();
+        let (best, average) = (self.compute_best(&values), self.compute_average(&values));
+        let changed = best != result.best || average != result.average;
+        result.attempts = attempts;
+        result.best = best;
+        result.average = average;
+        changed
     }
 
     fn rank_key(&self, result: &LiveResult) -> (bool, bool, i64, i64) {

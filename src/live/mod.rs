@@ -2,9 +2,12 @@
 //! `/api/v1/competitions/:id/live`. Results are kept in memory, like patches.
 
 pub mod model;
+pub mod writes;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod writes_tests;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -34,6 +37,7 @@ use model::{Definition, LiveResult, Rounds, Source, State as RoundState};
 pub struct Store {
     competitions: Mutex<HashMap<String, HashMap<String, Vec<LiveResult>>>>,
     next_id: AtomicU64,
+    pub queue: writes::Queue,
 }
 
 pub type RoundResults = HashMap<String, Vec<LiveResult>>;
@@ -54,6 +58,7 @@ impl Store {
 
     /// Drops one competition's results, or all. Returns whether there were any.
     pub fn reset(&self, competition_id: Option<&str>) -> Vec<String> {
+        self.queue.reset(competition_id);
         let mut competitions = self
             .competitions
             .lock()

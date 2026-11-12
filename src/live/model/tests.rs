@@ -318,3 +318,88 @@ fn the_state_hash_follows_the_results() {
     results[0].best = 900;
     assert_ne!(before, Round::state_hash(&results));
 }
+
+fn round(format: &str, event_id: &str, cutoff: Option<(usize, i64)>) -> Round {
+    Round {
+        wcif_id: format!("{}-r1", event_id),
+        db_id: 1,
+        event_id: event_id.to_string(),
+        number: 1,
+        total_rounds: 1,
+        format: Format::find(format).unwrap(),
+        cutoff,
+        source: Source::Registrations,
+        wcif: json!({}),
+    }
+}
+
+#[test]
+fn best_and_average_follow_the_wca() {
+    let ao5 = round("a", "333", None);
+    assert_eq!(ao5.compute_best(&[1200, 1000, 1100, 1300, 1400]), 1000);
+    assert_eq!(ao5.compute_average(&[1200, 1000, 1100, 1300, 1400]), 1200);
+    assert_eq!(
+        ao5.compute_average(&[1200, -1, 1100, 1300, 1400]),
+        1300,
+        "a DNF is trimmed"
+    );
+    assert_eq!(ao5.compute_average(&[1200, -1, 1100, -2, 1400]), -1);
+    assert_eq!(ao5.compute_average(&[1200, 1000, 1100]), 0, "not done yet");
+    assert_eq!(ao5.compute_best(&[-2, -1]), -1, "DNF beats DNS");
+    assert_eq!(ao5.compute_best(&[]), 0);
+    assert_eq!(ao5.compute_average(&[-2, -2, -2, -2, -2]), 0);
+
+    let mo3 = round("m", "666", None);
+    assert_eq!(mo3.compute_average(&[1000, 1001, 1001]), 1001);
+    assert_eq!(mo3.compute_average(&[1000, -1, 1001]), -1);
+
+    let slow = round("m", "777", None);
+    assert_eq!(
+        slow.compute_average(&[60_040, 60_050, 60_070]),
+        60_100,
+        "over 10 minutes rounds to the second"
+    );
+
+    let fm = round("m", "333fm", None);
+    assert_eq!(fm.compute_average(&[25, 26, 26]), 2567);
+
+    let bld = round("3", "333bf", None);
+    assert_eq!(bld.compute_average(&[3000, 3100, 3200]), 3100);
+    let bo3 = round("3", "333", None);
+    assert_eq!(
+        bo3.compute_average(&[3000, 3100, 3200]),
+        0,
+        "Bo3 has no mean"
+    );
+}
+
+#[test]
+fn a_missed_cutoff_completes_the_result_without_an_average() {
+    let round = round("a", "333", Some((2, 1000)));
+    let mut result = LiveResult::empty(1, 1, Utc::now());
+    let attempts = |values: &[i64]| -> Vec<Attempt> {
+        values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| Attempt {
+                attempt_number: index as i64 + 1,
+                value: *value,
+            })
+            .collect()
+    };
+    assert!(round.set_attempts(&mut result, attempts(&[1200, 1100])));
+    assert!(round.is_complete(&result));
+    assert_eq!((result.best, result.average), (1100, 0));
+
+    round.set_attempts(&mut result, attempts(&[1200, 900]));
+    assert!(!round.is_complete(&result), "made the cutoff");
+    round.set_attempts(&mut result, attempts(&[1200, 900, 1000, 1100, 1300]));
+    assert!(round.is_complete(&result));
+    assert_eq!(result.average, 1100);
+
+    // The whole list is replaced, sorted by attempt number.
+    let mut reversed = attempts(&[1500, 1400]);
+    reversed.reverse();
+    round.set_attempts(&mut result, reversed);
+    assert_eq!(result.attempts, attempts(&[1500, 1400]));
+}
