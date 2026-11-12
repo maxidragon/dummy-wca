@@ -22,6 +22,8 @@ pub struct Competition {
     pub competitor_limit: u32,
     /// `external`, `wca_live` or `internal`, as on the WCA.
     pub scoretaking_software: &'static str,
+    /// The most events one registration may have; `None` for no limit.
+    pub events_per_registration_limit: Option<u32>,
 }
 
 impl Competition {

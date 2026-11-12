@@ -1,5 +1,6 @@
 use axum::{
-    routing::{get, post, put},
+    middleware,
+    routing::{get, patch, post, put},
     Router,
 };
 
@@ -12,9 +13,29 @@ use crate::handler::{
     search_users_handler,
 };
 use crate::state::SharedState;
+use crate::v1;
+
+/// The WCA's `/api/v1` endpoints, rate limited like there.
+fn v1_router(state: SharedState) -> Router<SharedState> {
+    Router::new()
+        .route(
+            "/api/v1/registrations/:id",
+            patch(v1::registrations::update),
+        )
+        .route(
+            "/api/v1/competitions/:id/scoretakers",
+            get(v1::scoretakers::index).post(v1::scoretakers::create),
+        )
+        .route(
+            "/api/v1/competitions/:id/scoretakers/:user_id",
+            axum::routing::delete(v1::scoretakers::destroy),
+        )
+        .route_layer(middleware::from_fn_with_state(state, v1::rate_limit))
+}
 
 pub fn create_router(state: SharedState) -> Router {
     Router::new()
+        .merge(v1_router(state.clone()))
         .route("/", get(index_handler))
         .route("/dummy/competitions", post(create_handler))
         .route("/dummy/competitions/:id/delete", post(remove_handler))

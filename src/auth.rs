@@ -34,7 +34,16 @@ pub const DEFAULT_SCOPE: &str = "public";
 pub struct Caller<'a> {
     pub wca_id: &'a str,
     /// `None` for the fixed `token-<WCA ID>` tokens, which may do anything.
-    pub scopes: Option<Vec<&'a str>>,
+    scopes: Option<Vec<&'a str>>,
+}
+
+impl Caller<'_> {
+    /// Whether the token was granted this scope.
+    pub fn has_scope(&self, scope: &str) -> bool {
+        self.scopes
+            .as_ref()
+            .is_none_or(|scopes| scopes.contains(&scope))
+    }
 }
 
 /// The caller behind a bearer token, or `None` if it is malformed or expired.
@@ -116,7 +125,7 @@ mod tests {
     fn fixed_tokens_never_expire_and_may_do_anything() {
         let caller = caller_at("token-2012VAQR01", i64::MAX).unwrap();
         assert_eq!(caller.wca_id, "2012VAQR01");
-        assert_eq!(caller.scopes, None);
+        assert!(caller.has_scope("manage_registrations"));
     }
 
     #[test]
@@ -124,7 +133,8 @@ mod tests {
         let token = access_token("2012VAQR01", &["public", "manage_registrations"], 100);
         let caller = caller_at(&token, 99).unwrap();
         assert_eq!(caller.wca_id, "2012VAQR01");
-        assert_eq!(caller.scopes, Some(vec!["public", "manage_registrations"]));
+        assert!(caller.has_scope("manage_registrations"));
+        assert!(!caller.has_scope("manage_competitions"));
         assert_eq!(caller_at(&token, 100), None);
     }
 

@@ -6,10 +6,12 @@ mod route;
 mod schema;
 mod state;
 mod utils;
+mod v1;
 
 #[cfg(test)]
 mod api_tests;
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::http::{
@@ -46,7 +48,13 @@ async fn main() {
         CorsLayer::new()
             .allow_origin(Any)
             .allow_headers([AUTHORIZATION, CONTENT_TYPE])
-            .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::PUT]),
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PATCH,
+                Method::PUT,
+                Method::DELETE,
+            ]),
     );
 
     let competition = state.competition();
@@ -66,7 +74,10 @@ async fn main() {
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();
-    axum::serve(listener, app.into_make_service())
-        .await
-        .unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }

@@ -22,6 +22,8 @@ pub struct GeneratorConfig {
     /// `external`, `wca_live` or `internal`. Only `internal` enables the
     /// live results API.
     pub scoretaking_software: &'static str,
+    /// The most events one registration may have; `None` for no limit.
+    pub events_per_registration_limit: Option<u32>,
 }
 
 /// The values the WCA accepts for a competition's `scoretaking_software`.
@@ -96,6 +98,19 @@ impl GeneratorConfig {
                 )
             })?;
 
+        let events_per_registration_limit = get("GENERATED_EVENTS_PER_REGISTRATION_LIMIT")
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                parse_number(
+                    &value,
+                    "GENERATED_EVENTS_PER_REGISTRATION_LIMIT",
+                    1,
+                    events::EVENTS.len() as u32,
+                )
+            })
+            .transpose()?;
+
         Ok(GeneratorConfig {
             name,
             start_date,
@@ -114,6 +129,7 @@ impl GeneratorConfig {
                 .parse()
                 .map_err(|_| "GENERATED_SEED must be a non-negative integer".to_string())?,
             scoretaking_software,
+            events_per_registration_limit,
         })
     }
 
@@ -185,6 +201,7 @@ mod tests {
         assert_eq!(config.host.country_iso2, "PL");
         assert!(config.start_date.is_none());
         assert_eq!(config.scoretaking_software, "internal");
+        assert_eq!(config.events_per_registration_limit, None);
     }
 
     #[test]
@@ -199,6 +216,7 @@ mod tests {
             ("GENERATED_TIMEZONE", "America/New_York"),
             ("GENERATED_SEED", "42"),
             ("GENERATED_SCORETAKING_SOFTWARE", "wca_live"),
+            ("GENERATED_EVENTS_PER_REGISTRATION_LIMIT", "4"),
         ])
         .unwrap();
         assert_eq!(config.name, "Spring Test Open");
@@ -208,6 +226,7 @@ mod tests {
         assert_eq!(config.host.country_iso2, "US");
         assert_eq!(config.seed, 42);
         assert_eq!(config.scoretaking_software, "wca_live");
+        assert_eq!(config.events_per_registration_limit, Some(4));
     }
 
     #[test]
@@ -221,6 +240,7 @@ mod tests {
         assert!(config(&[("GENERATED_TIMEZONE", "Mars/Olympus")]).is_err());
         assert!(config(&[("GENERATED_TIMEZONE", "Africa/Nairobi")]).is_err());
         assert!(config(&[("GENERATED_SCORETAKING_SOFTWARE", "paper")]).is_err());
+        assert!(config(&[("GENERATED_EVENTS_PER_REGISTRATION_LIMIT", "0")]).is_err());
     }
 
     #[test]

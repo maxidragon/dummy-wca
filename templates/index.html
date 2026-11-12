@@ -90,6 +90,9 @@
                         {% endfor %}
                     </select>
                 </label>
+                <label>Events per registration limit
+                    <input type="number" name="events_per_registration_limit" min="1" placeholder="none" value="{{ form.events_per_registration_limit }}">
+                </label>
             </div>
             <div class="fields">
                 <label>Competitors (registrations, about 90% accepted)
