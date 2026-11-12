@@ -2,6 +2,7 @@
 //! `/api/v1/competitions/:id/live`. Results are kept in memory, like patches.
 
 pub mod model;
+pub mod page;
 pub mod writes;
 
 #[cfg(test)]

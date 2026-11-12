@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Live results - {{ competition_id }} - Dummy WCA</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {% if refresh %}
+        <meta http-equiv="refresh" content="5">
+        {% endif %}
+        <style>
+            :root { color-scheme: light; }
+            body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #222; background: #fff; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
+            th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
+            td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
+            code { font-size: 0.9rem; }
+            nav.rounds { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; }
+            nav.rounds a { padding: 0.3rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #222; font-size: 0.9rem; }
+            nav.rounds a.selected { background: #222; color: #fff; border-color: #222; }
+            nav.rounds small { color: #777; }
+            nav.rounds a.selected small { color: #ddd; }
+            tr.advancing td.pos { background: #c8ecc8; }
+            tr.questionable td.pos { background: #f3ecc0; }
+            tr.quit { color: #999; text-decoration: line-through; }
+            .notice { background: #fdf3d8; border: 1px solid #e6cf8a; padding: 0.6rem 1rem; border-radius: 4px; }
+            .legend span { padding: 0.1rem 0.4rem; margin-right: 0.6rem; }
+            .muted { color: #777; }
+        </style>
+    </head>
+    <body>
+        <p><a href="/">← Dummy WCA</a></p>
+        <h1>Live results: {{ competition_name }}</h1>
+        <p class="muted">
+            <code>{{ competition_id }}</code> · scoretaking software <code>{{ scoretaking_software }}</code> ·
+            {% if refresh %}
+            refreshes every 5 seconds (<a href="?round={{ round_id }}&amp;refresh=0">stop</a>)
+            {% else %}
+            <a href="?round={{ round_id }}">refresh every 5 seconds</a>
+            {% endif %}
+        </p>
+        {% if scoretaking_software != "internal" %}
+        <p class="notice">This competition's scoretaking software isn't <code>internal</code>, so the live results API refuses to take results for it.</p>
+        {% endif %}
+
+        <nav class="rounds">
+            {% for round in rounds %}
+            <a href="?round={{ round.id }}{% if !refresh %}&amp;refresh=0{% endif %}"{% if round.selected %} class="selected"{% endif %}>
+                {{ round.id }} <small>{{ round.state }}{% if round.competitors > 0 %} · {{ round.completed }}/{{ round.competitors }}{% endif %}</small>
+            </a>
+            {% endfor %}
+        </nav>
+
+        {% if round_id.is_empty() %}
+        <p>This competition has no rounds.</p>
+        {% else %}
+        <h2>{{ round_id }} <small class="muted">format {{ round_format }} · {{ round_state }}</small></h2>
+        {% if results.is_empty() %}
+        <p>No results yet. A scoretaker opens the round with <code>PUT /api/v1/competitions/{{ competition_id }}/live/rounds/{{ round_id }}/open</code>.</p>
+        {% else %}
+        <p class="legend"><span style="background: #c8ecc8">proceeds</span><span style="background: #f3ecc0">may still proceed</span><span class="muted">🔒 locked</span></p>
+        <table>
+            <tr>
+                <th class="number">#</th>
+                <th>Name</th>
+                <th class="number">Reg. id</th>
+                {% for attempt in results[0].attempts %}
+                <th class="number">{{ loop.index }}</th>
+                {% endfor %}
+                <th class="number">Average</th>
+                <th class="number">Best</th>
+                <th></th>
+            </tr>
+            {% for result in results %}
+            <tr class="{{ result.class }}{% if result.quit %} quit{% endif %}">
+                <td class="number pos">{{ result.pos }}</td>
+                <td>{{ result.name }}{% if !result.registrant_id.is_empty() %} <small class="muted">({{ result.registrant_id }})</small>{% endif %}</td>
+                <td class="number"><small>{{ result.registration_id }}</small></td>
+                {% for attempt in result.attempts %}
+                <td class="number">{{ attempt }}</td>
+                {% endfor %}
+                <td class="number"><strong>{{ result.average }}</strong></td>
+                <td class="number">{{ result.best }}</td>
+                <td>{% if result.locked %}🔒{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+        {% endif %}
+    </body>
+</html>

@@ -118,6 +118,7 @@ pub fn create_router(state: SharedState) -> Router {
         .route("/api/v0/records", get(get_records_handler))
         .route("/dummy/generated", get(get_generated_handler))
         .route("/dummy/reset", post(reset_handler))
+        .route("/dummy/competitions/:id/live", get(live::page::live_page))
         .route(
             "/dummy/competitions/:id/live/drop_next_write",
             post(live::writes::drop_next_write),

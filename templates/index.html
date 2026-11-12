@@ -5,7 +5,8 @@
         <title>Dummy WCA</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+            :root { color-scheme: light; }
+            body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #222; background: #fff; }
             table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
             th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
             td.events { font-size: 0.85rem; color: #555; }
@@ -40,7 +41,8 @@
                 <td>
                     <a href="/api/v0/competitions/{{ competition.id }}/wcif/public">public</a> ·
                     <a href="/api/v0/competitions/{{ competition.id }}/wcif/version/2">v2</a> ·
-                    <a href="/api/v0/competitions/{{ competition.id }}">info</a>
+                    <a href="/api/v0/competitions/{{ competition.id }}">info</a> ·
+                    <a href="/dummy/competitions/{{ competition.id }}/live">live results</a>
                 </td>
                 <td>
                     {% if competition.removable %}

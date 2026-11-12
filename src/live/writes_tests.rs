@@ -276,3 +276,52 @@ async fn a_dropped_write_is_answered_but_never_applied() {
     write(&app, "333-r1", competitors[0], &[1000]).await;
     assert_eq!(result(&app, "333-r1", competitors[0]).await["best"], 1000);
 }
+
+#[tokio::test]
+async fn the_live_page_shows_the_entered_results() {
+    let (_, app) = setup("0");
+    let page = format!("/dummy/competitions/{}/live", ID);
+    let (status, html) = call(&app, Method::GET, &page, None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    let html = html.as_str().unwrap().to_string();
+    assert!(html.contains("333-r1 <small>ready"));
+    assert!(html.contains("No results yet"));
+
+    let competitors = open(&app, "333-r1").await;
+    write(
+        &app,
+        "333-r1",
+        competitors[0],
+        &[1234, 6543, -1, 1000, 1100],
+    )
+    .await;
+    let (_, html) = call(&app, Method::GET, &page, None, None).await;
+    let html = html.as_str().unwrap();
+    assert!(html.contains("333-r1 <small>open · 1/"));
+    for shown in ["12.34", "1:05.43", "DNF", "10.00", "29.59"] {
+        assert!(html.contains(shown), "shows {}", shown);
+    }
+    assert!(html.contains("http-equiv=\"refresh\""));
+
+    let (_, html) = call(
+        &app,
+        Method::GET,
+        &format!("{}?round=333-r2&refresh=0", page),
+        None,
+        None,
+    )
+    .await;
+    let html = html.as_str().unwrap();
+    assert!(html.contains("<h2>333-r2"));
+    assert!(!html.contains("http-equiv=\"refresh\""));
+
+    let (status, _) = call(
+        &app,
+        Method::GET,
+        "/dummy/competitions/Nope2030/live",
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
