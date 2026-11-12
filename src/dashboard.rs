@@ -12,7 +12,9 @@ use axum::{
 };
 use chrono::Utc;
 
-use crate::generator::{self, events::EVENTS, names::HOSTS, GeneratorConfig};
+use crate::generator::{
+    self, config::SCORETAKING_SOFTWARE, events::EVENTS, names::HOSTS, GeneratorConfig,
+};
 use crate::state::SharedState;
 use crate::utils::read_json_file;
 
@@ -53,7 +55,8 @@ struct EventRow {
     default_rounds: u32,
 }
 
-struct TimezoneOption {
+/// One `<option>` of a `<select>`.
+struct SelectOption {
     name: &'static str,
     selected: bool,
 }
@@ -66,7 +69,8 @@ struct FormValues {
     competitors: String,
     rooms: String,
     seed: String,
-    timezones: Vec<TimezoneOption>,
+    timezones: Vec<SelectOption>,
+    scoretaking_software: Vec<SelectOption>,
     events: Vec<EventRow>,
 }
 
@@ -179,6 +183,7 @@ fn default_form(state: &SharedState) -> FormValues {
         rooms: defaults.rooms.to_string(),
         seed: (state.competitions().len() as u64 + 1).to_string(),
         timezones: timezones(defaults.timezone.name()),
+        scoretaking_software: scoretaking_software(defaults.scoretaking_software),
         events: EVENTS
             .iter()
             .map(|event| EventRow {
@@ -191,12 +196,22 @@ fn default_form(state: &SharedState) -> FormValues {
     }
 }
 
-fn timezones(selected: &str) -> Vec<TimezoneOption> {
+fn timezones(selected: &str) -> Vec<SelectOption> {
     HOSTS
         .iter()
-        .map(|host| TimezoneOption {
+        .map(|host| SelectOption {
             name: host.timezone,
             selected: host.timezone == selected,
+        })
+        .collect()
+}
+
+fn scoretaking_software(selected: &str) -> Vec<SelectOption> {
+    SCORETAKING_SOFTWARE
+        .iter()
+        .map(|name| SelectOption {
+            name,
+            selected: *name == selected,
         })
         .collect()
 }
@@ -218,6 +233,9 @@ fn sent_form(state: &SharedState, fields: &HashMap<String, String>) -> FormValue
     form.seed = field("seed", &form.seed);
     if let Some(timezone) = fields.get("timezone") {
         form.timezones = timezones(timezone);
+    }
+    if let Some(software) = fields.get("scoretaking_software") {
+        form.scoretaking_software = scoretaking_software(software);
     }
     for event in &mut form.events {
         event.rounds = rounds_field(fields, event.id);
@@ -253,6 +271,7 @@ fn config_from_form(fields: &HashMap<String, String>) -> Result<GeneratorConfig,
         "GENERATED_ROOMS" => field("rooms"),
         "GENERATED_TIMEZONE" => field("timezone"),
         "GENERATED_SEED" => field("seed"),
+        "GENERATED_SCORETAKING_SOFTWARE" => field("scoretaking_software"),
         "GENERATED_EVENTS" => Some(events.join(",")),
         _ => None,
     })
@@ -268,6 +287,7 @@ fn form_wording(message: &str) -> String {
         ("GENERATED_ROOMS", "Rooms"),
         ("GENERATED_TIMEZONE", "Timezone"),
         ("GENERATED_SEED", "Seed"),
+        ("GENERATED_SCORETAKING_SOFTWARE", "Scoretaking software"),
         ("GENERATED_EVENTS", "Events"),
     ]
     .iter()

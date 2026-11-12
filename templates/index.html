@@ -83,6 +83,13 @@
                 <label>Seed
                     <input type="number" name="seed" min="0" value="{{ form.seed }}">
                 </label>
+                <label>Scoretaking software
+                    <select name="scoretaking_software">
+                        {% for software in form.scoretaking_software %}
+                        <option{% if software.selected %} selected{% endif %}>{{ software.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
             </div>
             <div class="fields">
                 <label>Competitors (registrations, about 90% accepted)

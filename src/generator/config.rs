@@ -18,7 +18,14 @@ pub struct GeneratorConfig {
     pub timezone: Tz,
     pub host: &'static Host,
     pub seed: u64,
+    /// How results are entered, as the WCA's `scoretaking_software`:
+    /// `external`, `wca_live` or `internal`. Only `internal` enables the
+    /// live results API.
+    pub scoretaking_software: &'static str,
 }
+
+/// The values the WCA accepts for a competition's `scoretaking_software`.
+pub const SCORETAKING_SOFTWARE: [&str; 3] = ["external", "wca_live", "internal"];
 
 /// Covers every WCIF feature FKMTime's tests rely on; see
 /// `default_competition_covers_what_fkmtime_uses` before changing it.
@@ -76,6 +83,19 @@ impl GeneratorConfig {
             )
         })?;
 
+        let scoretaking_software = read("GENERATED_SCORETAKING_SOFTWARE", "internal");
+        let scoretaking_software = SCORETAKING_SOFTWARE
+            .iter()
+            .copied()
+            .find(|value| *value == scoretaking_software)
+            .ok_or_else(|| {
+                format!(
+                    "GENERATED_SCORETAKING_SOFTWARE must be one of {}, got {:?}",
+                    SCORETAKING_SOFTWARE.join(", "),
+                    scoretaking_software
+                )
+            })?;
+
         Ok(GeneratorConfig {
             name,
             start_date,
@@ -93,6 +113,7 @@ impl GeneratorConfig {
             seed: read("GENERATED_SEED", "1")
                 .parse()
                 .map_err(|_| "GENERATED_SEED must be a non-negative integer".to_string())?,
+            scoretaking_software,
         })
     }
 
@@ -163,6 +184,7 @@ mod tests {
         assert_eq!(config.events[0].1, 3);
         assert_eq!(config.host.country_iso2, "PL");
         assert!(config.start_date.is_none());
+        assert_eq!(config.scoretaking_software, "internal");
     }
 
     #[test]
@@ -176,6 +198,7 @@ mod tests {
             ("GENERATED_ROOMS", "1"),
             ("GENERATED_TIMEZONE", "America/New_York"),
             ("GENERATED_SEED", "42"),
+            ("GENERATED_SCORETAKING_SOFTWARE", "wca_live"),
         ])
         .unwrap();
         assert_eq!(config.name, "Spring Test Open");
@@ -184,6 +207,7 @@ mod tests {
         assert_eq!((config.events[1].0.id, config.events[1].1), ("333fm", 1));
         assert_eq!(config.host.country_iso2, "US");
         assert_eq!(config.seed, 42);
+        assert_eq!(config.scoretaking_software, "wca_live");
     }
 
     #[test]
@@ -196,6 +220,7 @@ mod tests {
         assert!(config(&[("GENERATED_START_DATE", "2026-02-30")]).is_err());
         assert!(config(&[("GENERATED_TIMEZONE", "Mars/Olympus")]).is_err());
         assert!(config(&[("GENERATED_TIMEZONE", "Africa/Nairobi")]).is_err());
+        assert!(config(&[("GENERATED_SCORETAKING_SOFTWARE", "paper")]).is_err());
     }
 
     #[test]

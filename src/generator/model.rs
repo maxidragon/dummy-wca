@@ -20,6 +20,8 @@ pub struct Competition {
     pub registration_open: NaiveDateTime,
     pub registration_close: NaiveDateTime,
     pub competitor_limit: u32,
+    /// `external`, `wca_live` or `internal`, as on the WCA.
+    pub scoretaking_software: &'static str,
 }
 
 impl Competition {
