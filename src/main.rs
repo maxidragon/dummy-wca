@@ -2,6 +2,7 @@ mod auth;
 mod dashboard;
 mod generator;
 mod handler;
+mod live;
 mod route;
 mod schema;
 mod state;

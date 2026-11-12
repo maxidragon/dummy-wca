@@ -1,6 +1,6 @@
 use axum::{
     middleware,
-    routing::{get, patch, post, put},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 
@@ -12,6 +12,7 @@ use crate::handler::{
     get_wcif_v2_handler, patch_wcif_handler, reset_handler, search_users_by_path_handler,
     search_users_handler,
 };
+use crate::live;
 use crate::state::SharedState;
 use crate::v1;
 
@@ -28,9 +29,47 @@ fn v1_router(state: SharedState) -> Router<SharedState> {
         )
         .route(
             "/api/v1/competitions/:id/scoretakers/:user_id",
-            axum::routing::delete(v1::scoretakers::destroy),
+            delete(v1::scoretakers::destroy),
         )
+        .merge(live_router())
         .route_layer(middleware::from_fn_with_state(state, v1::rate_limit))
+}
+
+/// The WCA's live results API, under `/api/v1/competitions/:id/live`.
+fn live_router() -> Router<SharedState> {
+    let rounds = "/api/v1/competitions/:id/live/rounds";
+    Router::new()
+        .route(rounds, get(live::rounds_info))
+        .route(&format!("{}/:round_id", rounds), get(live::round_results))
+        .route(&format!("{}/:round_id/open", rounds), put(live::open_round))
+        .route(
+            &format!("{}/:round_id/clear", rounds),
+            put(live::clear_round),
+        )
+        .route(
+            &format!("{}/:round_id/close", rounds),
+            delete(live::close_round),
+        )
+        .route(
+            &format!("{}/:round_id/bulk_quit", rounds),
+            delete(live::bulk_quit_competitors),
+        )
+        .route(
+            &format!("{}/:round_id/next_if_quit", rounds),
+            get(live::next_if_quit),
+        )
+        .route(
+            &format!("{}/:round_id/addable_competitors", rounds),
+            get(live::addable_competitors),
+        )
+        .route(
+            &format!("{}/:round_id/:registration_id", rounds),
+            put(live::add_competitor).delete(live::quit_competitor),
+        )
+        .route(
+            &format!("{}/:round_id/:registration_id/clear", rounds),
+            put(live::clear_competitor),
+        )
 }
 
 pub fn create_router(state: SharedState) -> Router {
