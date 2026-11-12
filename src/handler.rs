@@ -15,6 +15,7 @@ use axum_extra::{
 use chrono::NaiveDate;
 use serde_json::{json, Value};
 
+use crate::auth;
 use crate::generator::{
     names::{self, Account, ACCOUNTS},
     wcif::{self, Version},
@@ -35,23 +36,21 @@ type ApiResult = Result<Response, (StatusCode, Json<Value>)>;
 struct AuthorizeTemplate {
     redirect_uri: String,
     state: String,
+    /// Appended to `code-<WCA ID>` so the code carries the requested scopes.
+    code_suffix: String,
     accounts: &'static [Account],
 }
 
 const ADMIN_TEAMS: [&str; 3] = ["wst", "wrt", "wcat"];
-const TOKEN_LIFETIME_SECONDS: u32 = 7200;
 const PATCHABLE_KEYS: [&str; 3] = ["schedule", "events", "extensions"];
 
 fn error(status: StatusCode, message: &str) -> (StatusCode, Json<Value>) {
     (status, Json(json!({"status": "error","message": message})))
 }
 
-/// Tokens look like `token-<WCA ID>`.
+/// The WCA ID behind a token that is well-formed and not expired.
 fn wca_id_from_token(token: &str) -> Option<&str> {
-    token
-        .split_once('-')
-        .map(|(_, wca_id)| wca_id)
-        .filter(|wca_id| !wca_id.is_empty())
+    auth::caller(token).map(|caller| caller.wca_id)
 }
 
 impl IntoResponse for AuthorizeTemplate {
@@ -73,20 +72,22 @@ impl IntoResponse for AuthorizeTemplate {
 pub async fn code_handler(
     params: Query<OauthRequestOptions>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let client_id = params.client_id.clone();
-    if client_id != "example-application-id" {
-        Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({"status": "error","message": "Invalid client_id"})),
-        ))
-    } else {
-        let template = AuthorizeTemplate {
-            redirect_uri: params.redirect_uri.clone(),
-            state: params.state.clone().unwrap_or_default(),
-            accounts: &ACCOUNTS,
-        };
-        Ok(template.into_response())
+    if params.client_id != "example-application-id" {
+        return Err(error(StatusCode::NOT_FOUND, "Invalid client_id"));
     }
+    let Some(scopes) = auth::parse_scopes(params.scope.as_deref().unwrap_or_default()) else {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "The requested scope is invalid, unknown, or malformed.",
+        ));
+    };
+    let template = AuthorizeTemplate {
+        redirect_uri: params.redirect_uri.clone(),
+        state: params.state.clone().unwrap_or_default(),
+        code_suffix: format!("-{}", scopes.join(",")),
+        accounts: &ACCOUNTS,
+    };
+    Ok(template.into_response())
 }
 
 /// The WCA takes both: FKMTime sends JSON, and OAuth clients send a form.
@@ -110,24 +111,60 @@ async fn token_request(
     }
 }
 
+/// Doorkeeper's error shape, which OAuth clients look for.
+fn oauth_error(code: &str, description: &str) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(json!({ "error": code, "error_description": description })),
+    )
+}
+
+/// Exchanges a code or a refresh token for a new access and refresh token,
+/// as the WCA's Doorkeeper does. Each refresh token works once.
 pub async fn get_token_handler(
+    State(state): State<SharedState>,
     request: Request,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let body = token_request(request).await?;
-    if body.client_id != "example-application-id"
-        || body.client_secret != "example-secret"
-        || body.grant_type != "authorization_code"
-    {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({"status": "error","message": "Invalid data"})),
-        ));
+    if body.client_id != "example-application-id" || body.client_secret != "example-secret" {
+        return Err(error(StatusCode::NOT_FOUND, "Invalid data"));
     }
-    let wca_id = body.code.split("-").collect::<Vec<&str>>()[1];
+    let invalid_grant = || {
+        oauth_error(
+            "invalid_grant",
+            "The provided authorization grant is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.",
+        )
+    };
+    let (wca_id, scopes) = match body.grant_type.as_str() {
+        "authorization_code" => body
+            .code
+            .as_deref()
+            .and_then(auth::grant)
+            .ok_or_else(invalid_grant)?,
+        "refresh_token" => {
+            let token = body.refresh_token.as_deref().unwrap_or_default();
+            let grant = auth::refresh_grant(token).ok_or_else(invalid_grant)?;
+            if !state.use_refresh_token(token) {
+                return Err(invalid_grant());
+            }
+            grant
+        }
+        _ => {
+            return Err(oauth_error(
+                "unsupported_grant_type",
+                "The authorization grant type is not supported by the authorization server.",
+            ))
+        }
+    };
+    let now = chrono::Utc::now().timestamp();
+    let lifetime = state.settings.token_lifetime_seconds;
     Ok(Json(json!({
-        "access_token": format!("token-{}", wca_id),
+        "access_token": auth::access_token(wca_id, &scopes, now + i64::from(lifetime)),
         "token_type": "Bearer",
-        "expires_in": TOKEN_LIFETIME_SECONDS,
+        "expires_in": lifetime,
+        "refresh_token": auth::refresh_token(wca_id, &scopes, state.nonce()),
+        "scope": scopes.join(" "),
+        "created_at": now,
     })))
 }
 

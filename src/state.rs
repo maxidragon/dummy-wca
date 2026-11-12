@@ -1,5 +1,6 @@
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
@@ -10,8 +11,46 @@ pub type SharedState = Arc<AppState>;
 
 type PersonPatch = Map<String, Value>;
 
+/// Server settings that aren't about the generated competition.
+#[derive(Clone, Debug)]
+pub struct Settings {
+    /// How long a token from `POST /oauth/token` lasts. The WCA's last 2 hours.
+    pub token_lifetime_seconds: u32,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings::from_vars(|_| None).expect("defaults are valid")
+    }
+}
+
+impl Settings {
+    pub fn from_env() -> Result<Self, String> {
+        Settings::from_vars(|key| std::env::var(key).ok())
+    }
+
+    pub fn from_vars(get: impl Fn(&str) -> Option<String>) -> Result<Self, String> {
+        let number = |key: &str, default: u32, min: u32| -> Result<u32, String> {
+            match get(key).map(|value| value.trim().to_string()) {
+                Some(value) if !value.is_empty() => match value.parse::<u32>() {
+                    Ok(number) if number >= min => Ok(number),
+                    _ => Err(format!(
+                        "{} must be a whole number of at least {}, got {:?}",
+                        key, min, value
+                    )),
+                },
+                _ => Ok(default),
+            }
+        };
+        Ok(Settings {
+            token_lifetime_seconds: number("TOKEN_LIFETIME_SECONDS", 7200, 1)?,
+        })
+    }
+}
+
 pub struct AppState {
     pub config: GeneratorConfig,
+    pub settings: Settings,
     /// When the server started; "today" is taken from this once, so the
     /// competition doesn't move at midnight under a database seeded from it.
     pub started_at: DateTime<Utc>,
@@ -24,6 +63,10 @@ pub struct AppState {
     patches: RwLock<HashMap<String, HashMap<i64, PersonPatch>>>,
     /// `schedule`, `events` and `extensions` saved the same way, by competition.
     document_patches: RwLock<HashMap<String, Map<String, Value>>>,
+    /// Refresh tokens already exchanged: like on the WCA, each works once.
+    used_refresh_tokens: Mutex<HashSet<String>>,
+    /// Makes every refresh token distinct, across restarts too.
+    next_nonce: AtomicU64,
 }
 
 impl AppState {
@@ -42,7 +85,27 @@ impl AppState {
             created: RwLock::new(Vec::new()),
             patches: RwLock::new(HashMap::new()),
             document_patches: RwLock::new(HashMap::new()),
+            used_refresh_tokens: Mutex::new(HashSet::new()),
+            next_nonce: AtomicU64::new(now.timestamp_micros().unsigned_abs()),
+            settings: Settings::default(),
         }
+    }
+
+    pub fn with_settings(mut self, settings: Settings) -> Self {
+        self.settings = settings;
+        self
+    }
+
+    pub fn nonce(&self) -> u64 {
+        self.next_nonce.fetch_add(1, Ordering::Relaxed)
+    }
+
+    /// Marks a refresh token as used. Returns false if it already was.
+    pub fn use_refresh_token(&self, token: &str) -> bool {
+        self.used_refresh_tokens
+            .lock()
+            .expect("refresh token lock is never poisoned")
+            .insert(token.to_string())
     }
 
     /// The generated competition. It stays the same until the server restarts.

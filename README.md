@@ -64,11 +64,18 @@ Returns the current user information. Requires the `Authorization` header to be 
 
 ### `GET /oauth/authorize`
 
-Redirects to the page that asks to choose the user. Choosing one sends the browser to `redirect_uri` with `code`, and with `state` if the request had one.
+Redirects to the page that asks to choose the user. Choosing one sends the browser to `redirect_uri` with `code`, and with `state` if the request had one. The code carries the requested `scope` (`public` if none); an unknown scope gives 400, as on the WCA.
 
 ### `POST /oauth/token`
 
-Takes a JSON or form-encoded body, and returns an access token that can be used to authenticate requests, with `expires_in`.
+Takes a JSON or form-encoded body, and returns `access_token`, `refresh_token`, `expires_in`, `scope` and `created_at`, like the WCA's Doorkeeper.
+
+- `grant_type=authorization_code` with `code`. A code from the authorize page grants the scopes that were requested; a hand-written `code-<WCA ID>` grants every scope.
+- `grant_type=refresh_token` with `refresh_token` gives a new pair with the same scopes. Each refresh token works once; a second use gives 400 `invalid_grant`.
+
+Tokens last `TOKEN_LIFETIME_SECONDS` (default 7200, the WCA's 2 hours); after that they get 401. Set it lower to test refreshing.
+
+The fixed `token-<WCA ID>` tokens (see [Accounts](#accounts)) never expire and have every scope.
 
 ### `GET /api/v0/records`
 
@@ -120,6 +127,7 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | `GENERATED_SEED` | `1` | Change it to get different people. |
 | `GENERATED_SCORETAKING_SOFTWARE` | `internal` | `external`, `wca_live` or `internal`, as the WCA's `scoretaking_software`. The WCA's own default is `external`; this one defaults to `internal` so the generated competition can be scoretaken through the live results API. |
 | `PORT` | `3000` | Port to listen on. |
+| `TOKEN_LIFETIME_SECONDS` | `7200` | How long a token from `POST /oauth/token` lasts. |
 
 The defaults are chosen so that FKMTime can run its tests without any overrides. They include an Ao5 round without a cutoff, Ao5 and Mo3 rounds with cutoffs, Bo5 and Bo3 rounds with cumulative time limits, an event with three rounds, several groups per round, two rooms running a round at the same time, all four assignment codes (later rounds included), pending and deleted registrations, newcomers, and judges from the host country and from abroad. `default_competition_covers_what_fkmtime_uses` in `src/generator/tests.rs` pins this list.
 
