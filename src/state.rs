@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
@@ -16,6 +17,9 @@ type PersonPatch = Map<String, Value>;
 pub struct Settings {
     /// How long a token from `POST /oauth/token` lasts. The WCA's last 2 hours.
     pub token_lifetime_seconds: u32,
+    /// Requests per minute per client to each `/api/v1` controller, like the
+    /// WCA's 60. 0 turns the limit off.
+    pub api_rate_limit_per_minute: u32,
 }
 
 impl Default for Settings {
@@ -44,6 +48,7 @@ impl Settings {
         };
         Ok(Settings {
             token_lifetime_seconds: number("TOKEN_LIFETIME_SECONDS", 7200, 1)?,
+            api_rate_limit_per_minute: number("API_RATE_LIMIT_PER_MINUTE", 60, 0)?,
         })
     }
 }
@@ -67,7 +72,20 @@ pub struct AppState {
     used_refresh_tokens: Mutex<HashSet<String>>,
     /// Makes every refresh token distinct, across restarts too.
     next_nonce: AtomicU64,
+    /// Events set with `PATCH /api/v1/registrations/:id`, by competition and
+    /// registration id. In memory only, like patches.
+    registration_events: RwLock<HashMap<String, HashMap<u64, Vec<String>>>>,
+    /// User ids of each competition's scoretakers, in the order they were added.
+    scoretakers: RwLock<HashMap<String, Vec<u64>>>,
+    /// Requests counted for the rate limit: when the window started, and how many.
+    request_counts: Mutex<HashMap<String, (Instant, u32)>>,
+    /// Competitions created so far, so each gets its own registration ids.
+    created_count: AtomicU64,
 }
+
+/// Registration ids of competitions created at runtime are moved this far
+/// apart, so an id names one registration, as on the WCA.
+const REGISTRATION_ID_SPACING: u64 = 10_000;
 
 impl AppState {
     pub fn new(config: GeneratorConfig) -> Self {
@@ -88,6 +106,10 @@ impl AppState {
             used_refresh_tokens: Mutex::new(HashSet::new()),
             next_nonce: AtomicU64::new(now.timestamp_micros().unsigned_abs()),
             settings: Settings::default(),
+            registration_events: RwLock::new(HashMap::new()),
+            scoretakers: RwLock::new(HashMap::new()),
+            request_counts: Mutex::new(HashMap::new()),
+            created_count: AtomicU64::new(0),
         }
     }
 
@@ -149,6 +171,12 @@ impl AppState {
                 competition.id
             ));
         }
+        let mut competition = competition;
+        let offset =
+            (self.created_count.fetch_add(1, Ordering::Relaxed) + 1) * REGISTRATION_ID_SPACING;
+        for person in &mut competition.persons {
+            person.registration.wca_registration_id += offset;
+        }
         let competition = Arc::new(competition);
         created.push(competition.clone());
         Ok(competition)
@@ -194,8 +222,88 @@ impl AppState {
         }
     }
 
+    /// Counts a request against `limit` per `window`. Returns false once the
+    /// limit is used up, until the window is over.
+    pub fn count_request(&self, key: &str, limit: u32, window: Duration, now: Instant) -> bool {
+        let mut counts = self
+            .request_counts
+            .lock()
+            .expect("rate limit lock is never poisoned");
+        let (started, count) = counts.entry(key.to_string()).or_insert((now, 0));
+        if now.duration_since(*started) >= window {
+            *started = now;
+            *count = 0;
+        }
+        *count += 1;
+        *count <= limit
+    }
+
+    /// Replaces a registration's events.
+    pub fn set_registration_events(
+        &self,
+        competition_id: &str,
+        registration_id: u64,
+        event_ids: Vec<String>,
+    ) {
+        self.registration_events
+            .write()
+            .expect("registration lock is never poisoned")
+            .entry(competition_id.to_string())
+            .or_default()
+            .insert(registration_id, event_ids);
+    }
+
+    /// A registration's events, if they were changed.
+    pub fn registration_events(
+        &self,
+        competition_id: &str,
+        registration_id: u64,
+    ) -> Option<Vec<String>> {
+        self.registration_events
+            .read()
+            .expect("registration lock is never poisoned")
+            .get(competition_id)
+            .and_then(|events| events.get(&registration_id).cloned())
+    }
+
+    pub fn scoretakers(&self, competition_id: &str) -> Vec<u64> {
+        self.scoretakers
+            .read()
+            .expect("scoretaker lock is never poisoned")
+            .get(competition_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Adds a scoretaker unless they already are one.
+    pub fn add_scoretaker(&self, competition_id: &str, user_id: u64) {
+        let mut scoretakers = self
+            .scoretakers
+            .write()
+            .expect("scoretaker lock is never poisoned");
+        let list = scoretakers.entry(competition_id.to_string()).or_default();
+        if !list.contains(&user_id) {
+            list.push(user_id);
+        }
+    }
+
+    /// Returns whether they were a scoretaker.
+    pub fn remove_scoretaker(&self, competition_id: &str, user_id: u64) -> bool {
+        let mut scoretakers = self
+            .scoretakers
+            .write()
+            .expect("scoretaker lock is never poisoned");
+        let Some(list) = scoretakers.get_mut(competition_id) else {
+            return false;
+        };
+        let before = list.len();
+        list.retain(|id| *id != user_id);
+        list.len() != before
+    }
+
     /// Applies saved patches to a WCIF of that competition.
     pub fn apply_patches(&self, competition_id: &str, wcif: &mut Value) {
+        self.apply_registration_events(competition_id, wcif);
         let documents = self
             .document_patches
             .read()
@@ -225,29 +333,69 @@ impl AppState {
         }
     }
 
+    fn apply_registration_events(&self, competition_id: &str, wcif: &mut Value) {
+        let changed = self
+            .registration_events
+            .read()
+            .expect("registration lock is never poisoned");
+        let (Some(changed), Some(persons)) =
+            (changed.get(competition_id), wcif["persons"].as_array_mut())
+        else {
+            return;
+        };
+        for person in persons.iter_mut() {
+            let registration = &mut person["registration"];
+            if let Some(event_ids) = registration["wcaRegistrationId"]
+                .as_u64()
+                .and_then(|id| changed.get(&id))
+            {
+                registration["eventIds"] = Value::from(event_ids.clone());
+            }
+        }
+    }
+
     pub fn patched_persons(&self, competition_id: &str) -> usize {
         let patches = self.patches.read().expect("patch lock is never poisoned");
         patches.get(competition_id).map_or(0, HashMap::len)
     }
 
-    /// Drops saved patches for one competition, or for all. Returns how many
-    /// competitions had patches.
+    /// Drops saved patches, registration changes and scoretakers for one
+    /// competition, or for all. Returns how many competitions had any.
     pub fn reset(&self, competition_id: Option<&str>) -> usize {
         let mut patches = self.patches.write().expect("patch lock is never poisoned");
         let mut documents = self
             .document_patches
             .write()
             .expect("patch lock is never poisoned");
+        let mut events = self
+            .registration_events
+            .write()
+            .expect("registration lock is never poisoned");
+        let mut scoretakers = self
+            .scoretakers
+            .write()
+            .expect("scoretaker lock is never poisoned");
         match competition_id {
             Some(id) => {
                 let had_documents = documents.remove(id).is_some();
-                usize::from(patches.remove(id).is_some() || had_documents)
+                let had_events = events.remove(id).is_some();
+                let had_scoretakers = scoretakers.remove(id).is_some();
+                usize::from(
+                    patches.remove(id).is_some() || had_documents || had_events || had_scoretakers,
+                )
             }
             None => {
-                let ids: std::collections::HashSet<_> =
-                    patches.keys().chain(documents.keys()).cloned().collect();
+                let ids: HashSet<_> = patches
+                    .keys()
+                    .chain(documents.keys())
+                    .chain(events.keys())
+                    .chain(scoretakers.keys())
+                    .cloned()
+                    .collect();
                 patches.clear();
                 documents.clear();
+                events.clear();
+                scoretakers.clear();
                 ids.len()
             }
         }

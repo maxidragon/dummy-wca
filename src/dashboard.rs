@@ -71,6 +71,7 @@ struct FormValues {
     seed: String,
     timezones: Vec<SelectOption>,
     scoretaking_software: Vec<SelectOption>,
+    events_per_registration_limit: String,
     events: Vec<EventRow>,
 }
 
@@ -184,6 +185,7 @@ fn default_form(state: &SharedState) -> FormValues {
         seed: (state.competitions().len() as u64 + 1).to_string(),
         timezones: timezones(defaults.timezone.name()),
         scoretaking_software: scoretaking_software(defaults.scoretaking_software),
+        events_per_registration_limit: String::new(),
         events: EVENTS
             .iter()
             .map(|event| EventRow {
@@ -234,6 +236,10 @@ fn sent_form(state: &SharedState, fields: &HashMap<String, String>) -> FormValue
     if let Some(timezone) = fields.get("timezone") {
         form.timezones = timezones(timezone);
     }
+    form.events_per_registration_limit = field(
+        "events_per_registration_limit",
+        &form.events_per_registration_limit,
+    );
     if let Some(software) = fields.get("scoretaking_software") {
         form.scoretaking_software = scoretaking_software(software);
     }
@@ -272,6 +278,7 @@ fn config_from_form(fields: &HashMap<String, String>) -> Result<GeneratorConfig,
         "GENERATED_TIMEZONE" => field("timezone"),
         "GENERATED_SEED" => field("seed"),
         "GENERATED_SCORETAKING_SOFTWARE" => field("scoretaking_software"),
+        "GENERATED_EVENTS_PER_REGISTRATION_LIMIT" => field("events_per_registration_limit"),
         "GENERATED_EVENTS" => Some(events.join(",")),
         _ => None,
     })
@@ -288,6 +295,10 @@ fn form_wording(message: &str) -> String {
         ("GENERATED_TIMEZONE", "Timezone"),
         ("GENERATED_SEED", "Seed"),
         ("GENERATED_SCORETAKING_SOFTWARE", "Scoretaking software"),
+        (
+            "GENERATED_EVENTS_PER_REGISTRATION_LIMIT",
+            "Events per registration limit",
+        ),
         ("GENERATED_EVENTS", "Events"),
     ]
     .iter()

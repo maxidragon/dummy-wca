@@ -375,7 +375,7 @@ pub async fn get_competition_info_handler(
 
 /// Whether the token's user may read the private WCIF of the generated
 /// competition: its delegates and organizers, and WCA admin teams.
-fn can_manage_generated(
+pub fn can_manage_generated(
     state: &SharedState,
     competition: &Competition,
     wca_id: &str,

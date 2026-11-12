@@ -97,13 +97,35 @@ Returns the user with the given WCA ID.
 
 Returns `{ "result": [...] }` with the users whose name or WCA ID contains the query, ignoring case.
 
+### `/api/v1` endpoints
+
+Like on the WCA, these need a signed-in user unless they say otherwise, answer errors as `{"error": ...}` (401 `Please log in` without a valid token), and serve the generated competitions only. Each controller (registrations, scoretakers, live results) takes `API_RATE_LIMIT_PER_MINUTE` requests per minute per client IP (default 60, as on the WCA; 0 turns it off); after that it answers 429 with an empty body until the minute is over. The WCA doesn't limit its own internal network; dummy-wca limits everyone, so a client can test its 429 handling.
+
+### `PATCH /api/v1/registrations/:id`
+
+Replaces a registration's events: `{"competing": {"event_ids": ["333", "pyram"]}}`. The id is the WCIF's `registration.wcaRegistrationId`, and later WCIFs show the new events, until a restart or `POST /dummy/reset`. Answers `{"status": "ok", "registration": {...}}`.
+
+As on the WCA, the token needs the `manage_registrations` scope (else 403 `-2003`), and the user must manage the competition or own the registration (else 401 `-2003`). Competitors may edit until the competition starts (403 `-4001` after); managers may edit any time. Events must be held at the competition, and at most `GENERATED_EVENTS_PER_REGISTRATION_LIMIT` (managers too); otherwise 422 `-4004`. dummy-wca only changes `event_ids`: other registration fields give 400.
+
+### `GET /api/v1/competitions/:id/scoretakers`
+
+Lists the users who may enter results besides the managers, as `[{"user_id", "name"}]`. Any signed-in user may list them.
+
+### `POST /api/v1/competitions/:id/scoretakers`
+
+Adds the user in `{"user_id": ...}` (a no-op if they already are one) and answers `{"user_id", "name"}`. Needs a manager (403 `Organizer privileges required`). Scoretakers are kept until a restart or `POST /dummy/reset`.
+
+### `DELETE /api/v1/competitions/:id/scoretakers/:user_id`
+
+Removes a scoretaker and answers them, or `null` if they weren't one. Needs a manager.
+
 ### `GET /dummy/generated`
 
 Not a WCA endpoint. Returns the generated competition's current id, dates and settings, and the accounts that can sign in to it (with their `code-…` and `token-…`).
 
 ### `POST /dummy/reset`
 
-Not a WCA endpoint. Clears saved patches for all competitions, or for one with `?id=<competition id>`.
+Not a WCA endpoint. Clears saved patches, registration changes and scoretakers for all competitions, or for one with `?id=<competition id>`.
 
 ## Generated test competition
 
@@ -128,6 +150,8 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | `GENERATED_SCORETAKING_SOFTWARE` | `internal` | `external`, `wca_live` or `internal`, as the WCA's `scoretaking_software`. The WCA's own default is `external`; this one defaults to `internal` so the generated competition can be scoretaken through the live results API. |
 | `PORT` | `3000` | Port to listen on. |
 | `TOKEN_LIFETIME_SECONDS` | `7200` | How long a token from `POST /oauth/token` lasts. |
+| `API_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute per client to each `/api/v1` controller. 0 turns the limit off. |
+| `GENERATED_EVENTS_PER_REGISTRATION_LIMIT` | none | The most events one registration may have, enforced by `PATCH /api/v1/registrations/:id`. |
 
 The defaults are chosen so that FKMTime can run its tests without any overrides. They include an Ao5 round without a cutoff, Ao5 and Mo3 rounds with cutoffs, Bo5 and Bo3 rounds with cumulative time limits, an event with three rounds, several groups per round, two rooms running a round at the same time, all four assignment codes (later rounds included), pending and deleted registrations, newcomers, and judges from the host country and from abroad. `default_competition_covers_what_fkmtime_uses` in `src/generator/tests.rs` pins this list.
 
