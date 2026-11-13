@@ -66,7 +66,8 @@ pub struct AppState {
     /// Competitions generated from the page at `/` while the server runs,
     /// oldest first. Kept in memory only, like patches.
     created: RwLock<Vec<Arc<Competition>>>,
-    /// Persons saved with `PATCH .../wcif`, by competition id and registrant id.
+    /// What `PATCH .../wcif` saved of each person (assignments, roles,
+    /// extensions), by competition id and wcaUserId.
     /// Kept in memory only: a restart or `POST /dummy/reset` clears them.
     patches: RwLock<HashMap<String, HashMap<i64, PersonPatch>>>,
     /// `schedule`, `events` and `extensions` saved the same way, by competition.
@@ -221,10 +222,10 @@ impl AppState {
         let mut patches = self.patches.write().expect("patch lock is never poisoned");
         let saved = patches.entry(competition_id.to_string()).or_default();
         for person in persons {
-            let registrant_id = person["registrantId"]
+            let user_id = person["wcaUserId"]
                 .as_i64()
                 .expect("validated before saving");
-            saved.entry(registrant_id).or_default().extend(person);
+            saved.entry(user_id).or_default().extend(person);
         }
     }
 
@@ -325,10 +326,7 @@ impl AppState {
             return;
         };
         for person in persons.iter_mut() {
-            let Some(patch) = person["registrantId"]
-                .as_i64()
-                .and_then(|id| saved.get(&id))
-            else {
+            let Some(patch) = person["wcaUserId"].as_i64().and_then(|id| saved.get(&id)) else {
                 continue;
             };
             if let Some(person) = person.as_object_mut() {

@@ -556,11 +556,13 @@ fn validate_patch(id: &str, body: &Value, base: &Value) -> Result<ValidPatch, St
         Some(persons) => persons.as_array().ok_or("persons must be an array")?,
     };
 
-    let registrant_ids: HashSet<i64> = base["persons"]
+    // The WCA finds each person's registration by wcaUserId. registrantId is
+    // null for anyone not competing (pending, deleted), so it can't be the key.
+    let user_ids: HashSet<i64> = base["persons"]
         .as_array()
         .into_iter()
         .flatten()
-        .filter_map(|person| person["registrantId"].as_i64())
+        .filter_map(|person| person["wcaUserId"].as_i64())
         .collect();
     // Groups pushed in the same PATCH are what its assignments point at.
     let schedule = body.get("schedule").unwrap_or(&base["schedule"]);
@@ -571,42 +573,61 @@ fn validate_patch(id: &str, body: &Value, base: &Value) -> Result<ValidPatch, St
         }
     }
 
-    let persons = persons
-        .iter()
-        .map(|person| {
-            let person = person.as_object().ok_or("Every person must be an object")?;
-            let registrant_id = person
-                .get("registrantId")
-                .and_then(Value::as_i64)
-                .ok_or("Every person needs a numeric registrantId")?;
-            if !registrant_ids.contains(&registrant_id) {
-                return Err(format!("No person has registrantId {}", registrant_id));
+    let mut saved = Vec::new();
+    for person in persons {
+        let person = person.as_object().ok_or("Every person must be an object")?;
+        // Like the WCA, a person matching no registration is skipped, not an
+        // error. (The WCA would add one sent with isCompeting false as
+        // non-competing staff; dummy-wca doesn't.)
+        let Some(user_id) = person
+            .get("wcaUserId")
+            .and_then(Value::as_i64)
+            .filter(|id| user_ids.contains(id))
+        else {
+            continue;
+        };
+        saved.push(saved_person(person, user_id, &known_activities)?);
+    }
+    Ok(ValidPatch {
+        persons: saved,
+        document,
+    })
+}
+
+/// The part of a person the WCA saves: assignments, roles and extensions.
+/// Everything else in it (name, registrantId, ...) is ignored.
+fn saved_person(
+    person: &serde_json::Map<String, Value>,
+    user_id: i64,
+    known_activities: &HashSet<i64>,
+) -> Result<serde_json::Map<String, Value>, String> {
+    if let Some(assignments) = person.get("assignments") {
+        for assignment in assignments
+            .as_array()
+            .ok_or("assignments must be an array")?
+        {
+            let activity_id = assignment["activityId"]
+                .as_i64()
+                .ok_or("Every assignment needs an activityId")?;
+            if !known_activities.contains(&activity_id) {
+                return Err(format!("No activity has id {}", activity_id));
             }
-            if let Some(assignments) = person.get("assignments") {
-                for assignment in assignments
-                    .as_array()
-                    .ok_or("assignments must be an array")?
-                {
-                    let activity_id = assignment["activityId"]
-                        .as_i64()
-                        .ok_or("Every assignment needs an activityId")?;
-                    if !known_activities.contains(&activity_id) {
-                        return Err(format!("No activity has id {}", activity_id));
-                    }
-                    if !assignment["assignmentCode"].is_string() {
-                        return Err("Every assignment needs an assignmentCode".to_string());
-                    }
-                    if !(assignment["stationNumber"].is_null()
-                        || assignment["stationNumber"].is_i64())
-                    {
-                        return Err("stationNumber must be a number or null".to_string());
-                    }
-                }
+            if !assignment["assignmentCode"].is_string() {
+                return Err("Every assignment needs an assignmentCode".to_string());
             }
-            Ok(person.clone())
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    Ok(ValidPatch { persons, document })
+            if !(assignment["stationNumber"].is_null() || assignment["stationNumber"].is_i64()) {
+                return Err("stationNumber must be a number or null".to_string());
+            }
+        }
+    }
+    let mut saved = serde_json::Map::new();
+    saved.insert("wcaUserId".to_string(), Value::from(user_id));
+    for key in ["assignments", "roles", "extensions"] {
+        if let Some(value) = person.get(key) {
+            saved.insert(key.to_string(), value.clone());
+        }
+    }
+    Ok(saved)
 }
 
 /// Who is asking and what they sent, checked as for a real save.

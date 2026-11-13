@@ -44,7 +44,9 @@ Returns the version 2 WCIF of a competition. For the generated competition, a re
 
 ### `PATCH /api/v0/competitions/:id/wcif`
 
-Saves `persons` (merged by `registrantId`) and replaces `schedule`, `events` and `extensions` in memory. Every later WCIF request for that competition includes them, until a restart or `POST /dummy/reset`. The body may also contain `id` and `formatVersion`, and assignments may point at groups in the same body's `schedule`. Anything else, or an unknown registrant or activity id, gives 400.
+Saves `persons` and replaces `schedule`, `events` and `extensions` in memory. Every later WCIF request for that competition includes them, until a restart or `POST /dummy/reset`. The body may also contain `id` and `formatVersion`, and assignments may point at groups in the same body's `schedule`. Anything else, or an assignment to an unknown activity id, gives 400.
+
+Like the WCA, persons are matched by `wcaUserId`, not `registrantId` (which is `null` for pending and deleted registrations), and only their `assignments`, `roles` and `extensions` are saved. A person matching nobody in the competition is skipped, so sending the WCIF's `persons` back unchanged works.
 
 Requires the `Authorization` header to be set to `Bearer <token>` of a user who can manage the competition.
 

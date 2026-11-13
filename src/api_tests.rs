@@ -554,7 +554,7 @@ async fn patch_saves_schedule_with_assignments_to_its_new_groups() {
         .as_array_mut()
         .unwrap()
         .push(json!({"id": new_group, "name": "New group", "activityCode": "333-r1-g9"}));
-    let registrant = wcif["persons"][0]["registrantId"].clone();
+    let user_id = wcif["persons"][0]["wcaUserId"].clone();
 
     let (status, _) = call(
         &app,
@@ -565,7 +565,7 @@ async fn patch_saves_schedule_with_assignments_to_its_new_groups() {
             "schedule": schedule,
             "extensions": [{"id": "example.Extension"}],
             "persons": [{
-                "registrantId": registrant,
+                "wcaUserId": user_id,
                 "assignments": [{
                     "activityId": new_group,
                     "assignmentCode": "competitor",
@@ -592,7 +592,7 @@ async fn patch_saves_schedule_with_assignments_to_its_new_groups() {
         &uri,
         Some(DELEGATE),
         Some(json!({"persons": [{
-            "registrantId": registrant,
+            "wcaUserId": user_id,
             "assignments": [{"activityId": new_group, "assignmentCode": "staff-judge"}],
         }]})),
     )
@@ -610,16 +610,15 @@ async fn patch_rejects_bad_bodies() {
     let app = app();
     let (person, group) = competitor_and_group(&app).await;
     let uri = format!("/api/v0/competitions/{}/wcif", ID);
-    let registrant_id = person["registrantId"].clone();
+    let user_id = person["wcaUserId"].clone();
     let bad_bodies = [
         json!([]),
         json!({ "id": "OtherCompetition2026", "persons": [] }),
         json!({ "id": ID, "schedule": {} }),
         json!({ "id": ID, "persons": {} }),
-        json!({ "id": ID, "persons": [{ "registrantId": 99999 }] }),
-        json!({ "id": ID, "persons": [{ "name": "No registrant id" }] }),
-        json!({ "id": ID, "persons": [{ "registrantId": registrant_id, "assignments": [{ "activityId": 99999, "assignmentCode": "competitor" }] }] }),
-        json!({ "id": ID, "persons": [{ "registrantId": registrant_id, "assignments": [{ "activityId": group }] }] }),
+        json!({ "id": ID, "persons": ["not a person"] }),
+        json!({ "id": ID, "persons": [{ "wcaUserId": user_id, "assignments": [{ "activityId": 99999, "assignmentCode": "competitor" }] }] }),
+        json!({ "id": ID, "persons": [{ "wcaUserId": user_id, "assignments": [{ "activityId": group }] }] }),
     ];
     for body in bad_bodies {
         let (status, error) = call(
@@ -636,6 +635,52 @@ async fn patch_rejects_bad_bodies() {
         get(&app, "/dummy/generated", None).await.1["patchedPersons"],
         0
     );
+}
+
+#[tokio::test]
+async fn patch_matches_persons_by_wca_user_id_like_the_wca() {
+    let app = app();
+    let uri = format!("/api/v0/competitions/{}/wcif", ID);
+    let wcif_uri = format!("/api/v0/competitions/{}/wcif/version/2", ID);
+    let (_, wcif) = get(&app, &wcif_uri, Some(DELEGATE)).await;
+    let mut persons = wcif["persons"].as_array().unwrap().clone();
+    // Pending and deleted registrations have no registrantId
+    assert!(persons.iter().any(|p| p["registrantId"].is_null()));
+    let (_, group) = competitor_and_group(&app).await;
+    let index = persons
+        .iter()
+        .position(|p| p["registrantId"].is_i64())
+        .unwrap();
+    let user_id = persons[index]["wcaUserId"].clone();
+    persons[index]["assignments"] =
+        json!([{ "activityId": group, "stationNumber": null, "assignmentCode": "competitor" }]);
+    // Fields the WCA doesn't save from a PATCH are ignored
+    persons[index]["registrantId"] = Value::Null;
+    persons[index]["name"] = json!("Renamed");
+    // Someone with no registration is skipped, not an error
+    persons.push(json!({ "wcaUserId": 1, "registrantId": null, "name": "Stranger" }));
+    persons.push(json!({ "name": "No user id" }));
+
+    let body = json!({ "id": ID, "formatVersion": "2.1.1", "persons": persons });
+    let (status, saved) = call(&app, Method::PATCH, &uri, Some(DELEGATE), Some(body)).await;
+    assert_eq!(status, StatusCode::OK, "{}", saved);
+
+    let (_, wcif) = get(&app, &wcif_uri, Some(DELEGATE)).await;
+    let person = wcif["persons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["wcaUserId"] == user_id)
+        .unwrap()
+        .clone();
+    assert_eq!(person["assignments"][0]["activityId"], group);
+    assert!(person["registrantId"].is_i64());
+    assert_ne!(person["name"], "Renamed");
+    assert!(wcif["persons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|p| p["name"] != "Stranger"));
 }
 
 #[tokio::test]
@@ -744,16 +789,29 @@ async fn users_search_wraps_matching_users_in_a_result() {
 #[tokio::test]
 async fn reset_by_id_leaves_other_competitions_alone() {
     let app = app();
-    let empty = json!({ "persons": [{ "registrantId": 1, "assignments": [] }] });
     let generated = format!("/api/v0/competitions/{}/wcif", ID);
     let snapshot = "/api/v0/competitions/WLSMarzec2026/wcif";
+    // Empties registrant 1's assignments, found the way the WCA does: by wcaUserId
+    let empty_for = |wcif: &Value| {
+        let first = wcif["persons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["registrantId"] == 1)
+            .unwrap();
+        json!({ "persons": [{ "wcaUserId": first["wcaUserId"], "assignments": [] }] })
+    };
+    let (_, wcif) = get(&app, &format!("{}/version/2", generated), Some(DELEGATE)).await;
+    let empty_generated = empty_for(&wcif);
+    let (_, wcif) = get(&app, &format!("{}/version/2", snapshot), None).await;
+    let empty_snapshot = empty_for(&wcif);
     assert_eq!(
         call(
             &app,
             Method::PATCH,
             &generated,
             Some(DELEGATE),
-            Some(empty.clone())
+            Some(empty_generated)
         )
         .await
         .0,
@@ -765,7 +823,7 @@ async fn reset_by_id_leaves_other_competitions_alone() {
             Method::PATCH,
             snapshot,
             Some("token-2013ROGA02"),
-            Some(empty)
+            Some(empty_snapshot)
         )
         .await
         .0,
