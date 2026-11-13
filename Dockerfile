@@ -15,7 +15,9 @@ RUN cargo build --release
 RUN rm -f target/release/deps/$(cat Cargo.toml | awk '/name/ {print}' | cut -d '"' -f 2 | sed 's/-/_/')*
 
 COPY . .
-RUN cargo build --release
+# The checkout can be older than the placeholder build above, and cargo then
+# keeps the placeholder binary: make the real sources newer
+RUN touch src/main.rs && cargo build --release
 RUN cp -r target/release/$(cat Cargo.toml | awk '/name/ {print}' | cut -d '"' -f 2) /app/dummy-wca
 
 FROM debian:bookworm-slim
