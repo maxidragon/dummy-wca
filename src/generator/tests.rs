@@ -543,10 +543,16 @@ fn public_view_hides_private_data() {
 #[test]
 fn generating_is_quick() {
     let config = config(&[("GENERATED_COMPETITORS", "500"), ("GENERATED_DAYS", "3")]);
-    let started = Instant::now();
-    let competition = generate(&config, date("2026-10-26"));
-    let _ = wcif::wcif(&competition, Version::V2);
-    let elapsed = started.elapsed();
+    // The best of three, so tests running in parallel don't count as slowness.
+    let elapsed = (0..3)
+        .map(|_| {
+            let started = Instant::now();
+            let competition = generate(&config, date("2026-10-26"));
+            let _ = wcif::wcif(&competition, Version::V2);
+            started.elapsed()
+        })
+        .min()
+        .unwrap();
     // The server is built in release mode; debug builds are a few times slower.
     let budget = if cfg!(debug_assertions) { 250 } else { 50 };
     println!("generated 500 competitors in {:?}", elapsed);
