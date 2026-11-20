@@ -259,6 +259,13 @@ pub async fn open_round(
     let definition = &ctx.definition;
     let round = &definition.rounds[index];
     let now = Utc::now();
+    if round.format.is_head_to_head() {
+        // The WCA keeps a head-to-head round's matches outside live results
+        // and never ranks its live results, so dummy-wca doesn't open one.
+        return Err(bad_request(
+            "head-to-head rounds can't be opened in live results",
+        ));
+    }
     let body = state.live.with(&ctx.competition.id, |results| {
         let rounds = rounds(definition, results);
         match rounds.state(index) {

@@ -341,3 +341,50 @@ async fn clearing_a_competitor_removes_their_attempts() {
     call(&app, Method::POST, &reset, None, None).await;
     assert_eq!(round_states(&app).await, ["ready", "pending"]);
 }
+
+/// The WCA scores head-to-head matches outside live results, so the round is
+/// listed, its previous round says who proceeds, and it can't be opened.
+#[tokio::test]
+async fn a_head_to_head_round_is_listed_but_cannot_be_opened() {
+    let state = Arc::new(AppState::new(config(&[
+        ("GENERATED_COMPETITORS", "40"),
+        ("GENERATED_EVENTS", "333oh:2"),
+    ])));
+    let app = create_router(state.clone());
+    let (status, round) = call(
+        &app,
+        Method::GET,
+        &format!("{}/333oh-r2", ROUNDS),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{}", round);
+    assert_eq!(round["format"], "h");
+    assert_eq!(round_states(&app).await, ["ready", "pending"]);
+
+    put(&app, &format!("{}/333oh-r1/open", ROUNDS), DELEGATE).await;
+    finish_round(&state, "333oh-r1");
+    assert_eq!(round_states(&app).await, ["open", "ready"]);
+    let bracket_size = round["participationRuleset"]["participationSource"]["resultCondition"]
+        ["value"]
+        .as_u64()
+        .unwrap();
+    let proceeding = results(&state, "333oh-r1")
+        .iter()
+        .filter(|result| result.advancing)
+        .count();
+    assert_eq!(proceeding as u64, bracket_size);
+
+    let (status, body) = put(&app, &format!("{}/333oh-r2/open", ROUNDS), DELEGATE).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body["status"],
+        "head-to-head rounds can't be opened in live results"
+    );
+    assert_eq!(
+        round_states(&app).await,
+        ["open", "ready"],
+        "round 1 not locked"
+    );
+}

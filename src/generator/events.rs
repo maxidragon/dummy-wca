@@ -43,6 +43,14 @@ impl EventInfo {
         self.id == "333mbf"
     }
 
+    /// Whether the generated final is held head to head (WCIF format `h`).
+    /// Regulation 9b7 allows it only for the final of 333, 444, 333bf and
+    /// 333oh; FKMTime's tests need one H2H round, and 333oh's final has about
+    /// 12 competitors, a typical bracket.
+    pub fn has_head_to_head_final(&self) -> bool {
+        self.id == "333oh"
+    }
+
     /// Advancement and cutoffs compare averages for Ao5/Mo3, singles otherwise.
     pub fn ranks_by_average(&self) -> bool {
         matches!(self.format, "a" | "m")
@@ -330,6 +338,14 @@ pub const EVENTS: [EventInfo; 17] = [
         8000
     ),
 ];
+
+/// WCA events the generator doesn't hold: FTO and the retired ones. The
+/// WCA's API still knows them.
+pub const OTHER_WCA_EVENT_IDS: [&str; 5] = ["fto", "333ft", "magic", "mmagic", "333mbo"];
+
+pub fn is_wca_event(id: &str) -> bool {
+    find(id).is_some() || OTHER_WCA_EVENT_IDS.contains(&id)
+}
 
 pub fn find(id: &str) -> Option<&'static EventInfo> {
     EVENTS.iter().find(|event| event.id == id)

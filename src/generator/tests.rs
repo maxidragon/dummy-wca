@@ -610,6 +610,26 @@ fn default_competition_covers_what_fkmtime_uses() {
     has_round("Bo5", &|r| r["format"] == "5");
     has_round("Bo3", &|r| r["format"] == "3");
 
+    // SPEC-001: a head-to-head final, seeded from a ranking round before it.
+    let oh = wcif["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|event| event["id"] == "333oh")
+        .unwrap();
+    let oh_rounds = oh["rounds"].as_array().unwrap();
+    assert_eq!(oh_rounds.len(), 2);
+    let final_round = &oh_rounds[1];
+    assert_eq!(final_round["id"], "333oh-r2");
+    assert_eq!(final_round["format"], "h");
+    let condition = &final_round["participationRuleset"]["participationSource"]["resultCondition"];
+    assert_eq!(condition["type"], "ranking");
+    assert!(
+        (8..=16).contains(&condition["value"].as_u64().unwrap()),
+        "a bracket of about 12, got {}",
+        condition["value"]
+    );
+
     // An event with 3 rounds and advancement through participationRuleset.
     let three_rounds = wcif["events"]
         .as_array()
@@ -735,4 +755,45 @@ fn default_competition_covers_what_fkmtime_uses() {
         .collect();
     assert!(judges.iter().any(|p| p["countryIso2"] == "PL"));
     assert!(judges.iter().any(|p| p["countryIso2"] != "PL"));
+}
+
+/// Regulation 9b7: head to head only in the final. The generator makes it
+/// 333oh's, in every generated competition, and nowhere else.
+#[test]
+fn only_the_333oh_final_is_head_to_head() {
+    for vars in [
+        vec![],
+        vec![("GENERATED_EVENTS", "333bf:2,333oh:3,444:2")],
+        vec![
+            ("GENERATED_COMPETITORS", "250"),
+            ("GENERATED_EVENTS", "333:4,333oh:4"),
+        ],
+    ] {
+        let competition = generate(&config(&vars), date("2026-10-26"));
+        for version in [Version::V1, Version::V2] {
+            let wcif = wcif::wcif(&competition, version);
+            for event in wcif["events"].as_array().unwrap() {
+                let rounds = event["rounds"].as_array().unwrap();
+                for (index, round) in rounds.iter().enumerate() {
+                    let is_final = index + 1 == rounds.len();
+                    let expected = event["id"] == "333oh" && is_final;
+                    assert_eq!(round["format"] == "h", expected, "{}", round["id"]);
+                    if expected {
+                        assert!(round["cutoff"].is_null(), "{}", round["id"]);
+                        assert_eq!(round["timeLimit"]["cumulativeRoundIds"], json!([]));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_single_333oh_round_keeps_its_format() {
+    let competition = generate(
+        &config(&[("GENERATED_EVENTS", "333oh:1")]),
+        date("2026-10-26"),
+    );
+    let wcif = wcif::wcif(&competition, Version::V2);
+    assert_eq!(wcif["events"][0]["rounds"][0]["format"], "a");
 }

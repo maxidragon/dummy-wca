@@ -17,10 +17,12 @@ use serde_json::{json, Value};
 
 use crate::auth;
 use crate::generator::{
+    events,
     names::{self, Account, ACCOUNTS},
     wcif::{self, Version},
     Competition,
 };
+use crate::live::model::{Definition, Round as LiveRound};
 use crate::schema::{
     ManagedCompetitionsOptions, OauthRequestOptions, OauthTokenRequestOptions, ResetOptions,
     SearchUsersOptions,
@@ -371,6 +373,63 @@ pub async fn get_competition_info_handler(
             Json(json!({"status": "error","message": "ID not found"})),
         )),
     }
+}
+
+/// `GET /api/v0/competitions/:competition_id/results/:event_id`, like the
+/// WCA's `event_results`: an event's rounds, last round first. Public.
+///
+/// Round ids are the ones the live results API uses (`round_id`). Results
+/// stay empty: dummy-wca has no posted results.
+pub async fn get_event_results_handler(
+    State(state): State<SharedState>,
+    Path((id, event_id)): Path<(String, String)>,
+) -> ApiResult {
+    let wcif = match state.generated(&id) {
+        Some(competition) => {
+            let mut data = wcif::wcif(&competition, Version::V2);
+            state.apply_patches(&id, &mut data);
+            data
+        }
+        None => {
+            let mut data = read_json_file(&format!("data/competitions/{}/wcif.json", id))
+                .map_err(|_| v0_not_found(format!("Competition with id {} not found", id)))?;
+            state.apply_patches(&id, &mut data);
+            data
+        }
+    };
+    // The WCA raises on an unknown event id (a 500 there); 404 is what a
+    // client should expect.
+    if !events::is_wca_event(&event_id) {
+        return Err(v0_not_found(format!(
+            "Cached model Event ID not found: {}",
+            event_id
+        )));
+    }
+    let definition = Definition::from_wcif(&wcif);
+    let mut rounds: Vec<&LiveRound> = definition
+        .rounds
+        .iter()
+        .filter(|round| round.event_id == event_id)
+        .collect();
+    rounds.sort_by_key(|round| std::cmp::Reverse(round.number));
+    let rounds: Vec<Value> = rounds
+        .iter()
+        .map(|round| {
+            json!({
+                "id": round.db_id,
+                "roundTypeId": round.round_type_id(),
+                "isH2hMock": false,
+                "isLinked": false,
+                "results": [],
+            })
+        })
+        .collect();
+    Ok(Json(json!({ "id": event_id, "rounds": rounds })).into_response())
+}
+
+/// A 404 from the WCA's `Api::V0` controllers.
+fn v0_not_found(message: String) -> (StatusCode, Json<Value>) {
+    (StatusCode::NOT_FOUND, Json(json!({ "error": message })))
 }
 
 /// Whether the token's user may read the private WCIF of the generated

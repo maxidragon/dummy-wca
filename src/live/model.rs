@@ -3,7 +3,8 @@
 //! results are computed, ranked and advanced, and what state a round is in.
 //!
 //! Rounds come from the competition's WCIF (v2), so a WCIF patch changes
-//! them too. Linked rounds and head-to-head rounds aren't supported.
+//! them too. Linked rounds aren't supported. Head-to-head rounds are listed
+//! but can't be opened: the WCA scores their matches outside live results.
 
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
@@ -27,6 +28,8 @@ impl Format {
             "5" => (false, 5, 1),
             "a" => (true, 5, 1),
             "m" => (true, 3, 0),
+            // Head to head: no fixed number of attempts, ranked by matches.
+            "h" => (false, 0, 0),
             _ => return None,
         };
         Some(Format {
@@ -36,6 +39,10 @@ impl Format {
             trim_fastest_n: trim,
             trim_slowest_n: trim,
         })
+    }
+
+    pub fn is_head_to_head(&self) -> bool {
+        self.id == 'h'
     }
 }
 
@@ -431,6 +438,22 @@ fn round_half_away(value: f64) -> i64 {
 }
 
 impl Round {
+    /// `Round#round_type_id`: `1`, `2`, `3` and `f` for first, second, semi
+    /// final and final, or `d`, `e`, `g` and `c` for the same with a cutoff.
+    pub fn round_type_id(&self) -> &'static str {
+        let cutoff = self.cutoff.is_some();
+        match (self.number, cutoff) {
+            (number, true) if number == self.total_rounds => "c",
+            (number, false) if number == self.total_rounds => "f",
+            (1, true) => "d",
+            (1, false) => "1",
+            (2, true) => "e",
+            (2, false) => "2",
+            (_, true) => "g",
+            (_, false) => "3",
+        }
+    }
+
     fn values_for_sorting(&self, result: &LiveResult) -> Vec<(bool, bool, bool, i64)> {
         if self.format.sort_by_average {
             vec![orderable(result.average), orderable(result.best)]

@@ -1,5 +1,5 @@
 use super::config::GeneratorConfig;
-use super::model::{Advancement, Event, Person, Round};
+use super::model::{Advancement, Event, Person, Round, HEAD_TO_HEAD};
 
 /// Stations per room: enough that round 1 of a popular event takes a few groups.
 pub fn stations(accepted: u32, rooms: u32) -> u32 {
@@ -62,6 +62,10 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                 .enumerate()
                 .map(|(index, &competitors)| {
                     let number = index as u32 + 1;
+                    // Only a final with a round before it to seed the bracket
+                    // from; a single round stays in the event's format.
+                    let head_to_head =
+                        info.has_head_to_head_final() && number == round_count && round_count >= 2;
                     let groups = if info.is_fewest_moves() {
                         1
                     } else {
@@ -70,9 +74,19 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                     Round {
                         id: format!("{}-r{}", info.id, number),
                         number,
+                        format: if head_to_head {
+                            HEAD_TO_HEAD
+                        } else {
+                            info.format
+                        },
                         competitors,
                         groups,
-                        cutoff: if number == 1 { info.cutoff } else { None },
+                        // A head-to-head round has no cutoff.
+                        cutoff: if number == 1 && !head_to_head {
+                            info.cutoff
+                        } else {
+                            None
+                        },
                         advancement: advancements.get(index).copied(),
                     }
                 })

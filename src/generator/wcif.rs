@@ -152,15 +152,16 @@ fn event_json(event: &Event, version: Version) -> Value {
         .iter()
         .enumerate()
         .map(|(index, round)| {
+            // A head-to-head round's time limit is per attempt, never cumulative.
             let time_limit = info.time_limit.map(|centiseconds| {
                 json!({
                     "centiseconds": centiseconds,
-                    "cumulativeRoundIds": if info.cumulative_limit { vec![round.id.clone()] } else { vec![] },
+                    "cumulativeRoundIds": if info.cumulative_limit && !round.is_head_to_head() { vec![round.id.clone()] } else { vec![] },
                 })
             });
             let mut value = json!({
                 "id": round.id,
-                "format": info.format,
+                "format": round.format,
                 "timeLimit": time_limit,
                 "scrambleSetCount": round.groups,
                 "results": [],

@@ -32,6 +32,26 @@ For the generated competition's accounts, `start` and `end` filter like on the W
 
 Returns the information of a competition. Like on the WCA, it includes `scoretaking_software`: `external`, `wca_live` or `internal`. Generated competitions take it from `GENERATED_SCORETAKING_SOFTWARE` or the page's form.
 
+### `GET /api/v0/competitions/:id/results/:event_id`
+
+An event's rounds, last round first, like the WCA's `event_results`. Public, no token needed.
+
+```json
+{
+  "id": "333oh",
+  "rounds": [
+    { "id": 11, "roundTypeId": "f", "isH2hMock": false, "isLinked": false, "results": [] },
+    { "id": 10, "roundTypeId": "1", "isH2hMock": false, "isLinked": false, "results": [] }
+  ]
+}
+```
+
+- `id` is the round's number in the competition: its position among all the WCIF's rounds, counting from 1 in event order. It is the `round_id` the live results API gives the same round, and it stays the same until a WCIF patch changes the events.
+- `roundTypeId` is the WCA's: `1`, `2`, `3` and `f` for first, second, semi final and final, or `d`, `e`, `g` and `c` for the same with a cutoff. A head-to-head final is `f`.
+- `results` is always empty: dummy-wca has no posted results.
+- Generated competitions answer from their WCIF with patches applied, snapshots from their `wcif.json`.
+- An unknown competition or event id gives 404 `{"error": ...}`. A WCA event the competition doesn't hold gives an empty `rounds`, as on the WCA. (The WCA itself fails with a 500 for an unknown event id.)
+
 ### `GET /api/v0/competitions/:id/wcif`
 
 Returns the WCIF of a competition.
@@ -151,6 +171,8 @@ To test what a client does when a write is lost, `POST /dummy/competitions/:id/l
 
 A round is `pending` until every result of the previous round is complete (all attempts, or the cutoff missed), `blocked` if the previous rounds had too few competitors for it under regulation 9m, `ready`, `open` once it has results, and `locked` once the next round opens. Who proceeds (`advancing`) follows the next round's `resultCondition` and the 75% rule (in a final, it marks the podium), and stops changing once the round is locked. Linked rounds, records, podiums and live updates over WebSockets aren't emulated.
 
+Head-to-head rounds (format `h`) are listed and readable like any other, and the round before one marks who proceeds into the bracket. Opening one gives 400 `head-to-head rounds can't be opened in live results`: the WCA scores head-to-head matches outside live results and never ranks a format `h` round's live results, so dummy-wca keeps them out instead of guessing.
+
 ### `GET /dummy/generated`
 
 Not a WCA endpoint. Returns the generated competition's current id, dates and settings, and the accounts that can sign in to it (with their `code-…` and `token-…`).
@@ -161,7 +183,7 @@ Not a WCA endpoint. Clears saved patches, registration changes, scoretakers and 
 
 ## Generated test competition
 
-The generated competition is invented from scratch: names, WCA IDs (about 15% newcomers have none), countries, birthdates, personal bests, registrations, rounds with time limits, cutoffs and advancement, a schedule with groups across rooms, and competitor, judge, scrambler and runner assignments for round 1. It is generated in a few milliseconds and cached.
+The generated competition is invented from scratch: names, WCA IDs (about 15% newcomers have none), countries, birthdates, personal bests, registrations, rounds with time limits, cutoffs and advancement, a head-to-head final, a schedule with groups across rooms, and competitor, judge, scrambler and runner assignments for round 1. It is generated in a few milliseconds and cached.
 
 The same settings always give the same data. Only the dates and the year in the id and name follow the start date, so `Dummy Cubing Open` is `DummyCubingOpen2026` in 2026 and `DummyCubingOpen2027` in 2027.
 
@@ -175,7 +197,7 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | `GENERATED_START_DATE` | today in the venue timezone, at server start | `YYYY-MM-DD`. Without it, the date is taken once when the server starts; restart it to move the competition to the new today. |
 | `GENERATED_DAYS` | `2` | 1 to 4. |
 | `GENERATED_COMPETITORS` | `60` | 2 to 1000 registrations; about 90% are accepted. |
-| `GENERATED_EVENTS` | `333:3,222:2,444:2,666:1,333bf:1,333oh:2,clock:1,minx:1,pyram:2,skewb:1,sq1:1,444bf:1` | Events with their number of rounds (1 to 4). Rounds are dropped when there are too few competitors for them under the WCA Regulations. |
+| `GENERATED_EVENTS` | `333:3,222:2,444:2,666:1,333bf:1,333oh:2,clock:1,minx:1,pyram:2,skewb:1,sq1:1,444bf:1` | Events with their number of rounds (1 to 4). Rounds are dropped when there are too few competitors for them under the WCA Regulations. `333oh`'s final is head to head (see below). |
 | `GENERATED_ROOMS` | `2` | 1 to 4. |
 | `GENERATED_TIMEZONE` | `Europe/Warsaw` | Venue timezone; it also sets the host country and currency. Schedules keep their local times across DST changes. |
 | `GENERATED_SEED` | `1` | Change it to get different people. |
@@ -186,7 +208,11 @@ Set these environment variables when starting the server (e.g. in `docker-compos
 | `API_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute per client to each `/api/v1` controller. 0 turns the limit off. |
 | `GENERATED_EVENTS_PER_REGISTRATION_LIMIT` | none | The most events one registration may have, enforced by `PATCH /api/v1/registrations/:id`. |
 
-The defaults are chosen so that FKMTime can run its tests without any overrides. They include an Ao5 round without a cutoff, Ao5 and Mo3 rounds with cutoffs, Bo5 and Bo3 rounds with cumulative time limits, an event with three rounds, several groups per round, two rooms running a round at the same time, all four assignment codes (later rounds included), pending and deleted registrations, newcomers, and judges from the host country and from abroad. `default_competition_covers_what_fkmtime_uses` in `src/generator/tests.rs` pins this list.
+### Head-to-head final
+
+In every generated competition, the final of `333oh` (`333oh-r2` with the defaults) has WCIF format `h`, head to head, for [FKMTime's head-to-head rounds](https://github.com/FKMTime/FKMTime/blob/main/docs/specs/SPEC-001-head-to-head.md). Regulation 9b7 allows it only for the final of 333, 444, 333bf and 333oh; the generator uses it for 333oh only, whose final has about 12 competitors. The round has no cutoff and a per-attempt (never cumulative) time limit, and the round before it advances by ranking, so its `resultCondition` says how big the bracket is. When 333oh has a single round, that round keeps the Ao5 format: a bracket needs a round to seed it from.
+
+The defaults are chosen so that FKMTime can run its tests without any overrides. They include a head-to-head final, an Ao5 round without a cutoff, Ao5 and Mo3 rounds with cutoffs, Bo5 and Bo3 rounds with cumulative time limits, an event with three rounds, several groups per round, two rooms running a round at the same time, all four assignment codes (later rounds included), pending and deleted registrations, newcomers, and judges from the host country and from abroad. `default_competition_covers_what_fkmtime_uses` in `src/generator/tests.rs` pins this list.
 
 ### "Today"
 

@@ -403,3 +403,25 @@ fn a_missed_cutoff_completes_the_result_without_an_average() {
     round.set_attempts(&mut result, reversed);
     assert_eq!(result.attempts, attempts(&[1500, 1400]));
 }
+
+#[test]
+fn round_types_follow_the_wca() {
+    let typed = |number: u32, total_rounds: u32, cutoff: Option<(usize, i64)>| {
+        Round {
+            number,
+            total_rounds,
+            ..round("a", "333", cutoff)
+        }
+        .round_type_id()
+    };
+    let cutoff = Some((2, 3000));
+    assert_eq!(typed(1, 1, None), "f");
+    assert_eq!(typed(1, 1, cutoff), "c");
+    assert_eq!(typed(1, 4, None), "1");
+    assert_eq!(typed(1, 4, cutoff), "d");
+    assert_eq!(typed(2, 4, None), "2");
+    assert_eq!(typed(2, 4, cutoff), "e");
+    assert_eq!(typed(3, 4, None), "3");
+    assert_eq!(typed(3, 4, cutoff), "g");
+    assert_eq!(typed(4, 4, None), "f");
+}
