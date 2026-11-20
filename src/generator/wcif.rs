@@ -160,7 +160,7 @@ fn event_json(event: &Event, version: Version) -> Value {
             });
             let mut value = json!({
                 "id": round.id,
-                "format": info.format,
+                "format": round.format,
                 "timeLimit": time_limit,
                 "scrambleSetCount": round.groups,
                 "results": [],
