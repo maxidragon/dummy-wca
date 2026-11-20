@@ -381,8 +381,8 @@ pub async fn get_competition_info_handler(
 /// `GET /api/v0/competitions/:competition_id/results/:event_id`, like the
 /// WCA's `event_results`: an event's rounds, last round first. Public.
 ///
-/// Round ids are the ones the live results API uses (`round_id`). Results
-/// stay empty: dummy-wca has no posted results.
+/// For generated competitions, round ids are the ones the live results API
+/// uses (`round_id`). Results stay empty: dummy-wca has no posted results.
 pub async fn get_event_results_handler(
     State(state): State<SharedState>,
     Path((id, event_id)): Path<(String, String)>,
@@ -419,7 +419,7 @@ pub async fn get_event_results_handler(
             json!({
                 "id": round.db_id,
                 "roundTypeId": round.round_type_id(),
-                // Set by the WCA only on rounds whose H2H results it imported.
+                // A flag WCA staff set by hand for the H2H results import.
                 "isH2hMock": false,
                 "isLinked": round.wcif["linkedRounds"]
                     .as_array()

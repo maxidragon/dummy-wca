@@ -47,7 +47,8 @@ impl EventInfo {
     /// Regulation 9b7 allows it only for the final of 333, 444, 333bf and
     /// 333oh; FKMTime's tests need one H2H round, and 333oh's final has 12
     /// competitors with the defaults. Such an event must have no cumulative
-    /// time limit, which a head-to-head round can't use.
+    /// time limit: Article I doesn't say whether a head-to-head round may
+    /// have one, and FKMTime refuses it (SPEC-001).
     pub fn has_head_to_head_final(&self) -> bool {
         self.id == "333oh"
     }
@@ -342,7 +343,7 @@ pub const EVENTS: [EventInfo; 17] = [
 
 /// WCA events the generator doesn't hold: FTO and the retired ones. The
 /// WCA's API still knows them.
-pub const OTHER_WCA_EVENT_IDS: [&str; 5] = ["fto", "333ft", "magic", "mmagic", "333mbo"];
+const OTHER_WCA_EVENT_IDS: [&str; 5] = ["fto", "333ft", "magic", "mmagic", "333mbo"];
 
 pub fn is_wca_event(id: &str) -> bool {
     find(id).is_some() || OTHER_WCA_EVENT_IDS.contains(&id)

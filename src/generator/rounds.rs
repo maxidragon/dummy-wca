@@ -104,3 +104,23 @@ fn bracket_size(competitors: u32) -> u32 {
         .find(|size| *size <= competitors)
         .unwrap_or(4)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::bracket_size;
+
+    #[test]
+    fn brackets_take_the_largest_size_that_fits() {
+        for (competitors, size) in [
+            (6, 4),
+            (7, 4),
+            (8, 8),
+            (11, 8),
+            (12, 12),
+            (15, 12),
+            (16, 16),
+        ] {
+            assert_eq!(bracket_size(competitors), size, "{}", competitors);
+        }
+    }
+}

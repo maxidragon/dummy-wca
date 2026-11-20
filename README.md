@@ -48,9 +48,9 @@ An event's rounds, last round first, like the WCA's `event_results`. Public, no 
 
 - `id` is the round's number in the competition: its position among the WCIF's rounds, counting from 1 in event order. It stays the same until a WCIF patch changes the events. For generated competitions it is also the `round_id` the live results API gives the same round. Unlike the WCA's database ids, it is unique only within one competition.
 - `roundTypeId` is the WCA's: `1`, `2`, `3` and `f` for first, second, semi final and final, or `d`, `e`, `g` and `c` for the same with a cutoff. A head-to-head final is `f`.
-- `isLinked` is `true` for the rounds of a dual round (the WCIF's `linkedRounds`). `isH2hMock` is always `false`: the WCA sets it only on rounds whose head-to-head results it imported, not on every format `h` round.
+- `isLinked` is `true` for the rounds of a dual round (the WCIF's `linkedRounds`). `isH2hMock` is always `false`: on the WCA it is a flag (default `false`) that staff set by hand on rounds whose head-to-head results go through its CSV import, not something every format `h` round has. dummy-wca has no import.
 - `results` is always empty: dummy-wca has no posted results.
-- Generated competitions answer from their WCIF with patches applied, snapshots from their `wcif_v2.json`, or `wcif.json` when they have no version 2.
+- Generated competitions answer from their WCIF with patches applied, snapshots from their `wcif_v2.json`, or `wcif.json` when they have no version 2 (version 1 has no `linkedRounds`, so `isLinked` is then always `false`).
 - An unknown competition or event id gives 404 `{"error": ...}`. A WCA event the competition doesn't hold gives an empty `rounds`, as on the WCA. (The WCA itself fails with a 500 for an unknown event id.)
 
 ### `GET /api/v0/competitions/:id/wcif`
@@ -172,7 +172,7 @@ To test what a client does when a write is lost, `POST /dummy/competitions/:id/l
 
 A round is `pending` until every result of the previous round is complete (all attempts, or the cutoff missed), `blocked` if the previous rounds had too few competitors for it under regulation 9m, `ready`, `open` once it has results, and `locked` once the next round opens. Who proceeds (`advancing`) follows the next round's `resultCondition` and the 75% rule (in a final, it marks the podium), and stops changing once the round is locked. Linked rounds, records, podiums and live updates over WebSockets aren't emulated.
 
-Head-to-head rounds (format `h`) are listed and readable like any other, and the round before one marks who proceeds into the bracket. Once that round is done, the head-to-head round shows as `ready`, but opening it (or quitting a competitor from it, which would advance someone into it) gives 400 `head-to-head rounds can't be opened in live results`. This differs from the WCA, which would open the round: dummy-wca doesn't emulate head-to-head scoring, and the WCA never ranks a format `h` round's live results, so it keeps them out instead of guessing.
+Head-to-head rounds (format `h`) are listed and readable like any other, and the round before one marks who proceeds into the bracket. Once that round is done, the head-to-head round shows as `ready`, but opening it or quitting a competitor from it gives 400, in any state, `head-to-head rounds can't be opened in live results`. This differs from the WCA, which would open the round: dummy-wca doesn't emulate head-to-head scoring, and the WCA never ranks a format `h` round's live results, so it keeps them out instead of guessing.
 
 ### `GET /dummy/generated`
 
@@ -213,7 +213,7 @@ The defaults are chosen so that FKMTime can run its tests without any overrides.
 
 ### Head-to-head final
 
-In every generated competition, the final of `333oh` (`333oh-r2` with the defaults) has WCIF format `h`, head to head, for [FKMTime's head-to-head rounds](https://github.com/FKMTime/FKMTime/blob/main/docs/specs/SPEC-001-head-to-head.md). Regulation 9b7 allows it only for the final of 333, 444, 333bf and 333oh; the generator uses it for 333oh only. The round before it advances by ranking, so its `resultCondition` says how big the bracket is: 12 with the defaults, and always 4, 8, 12 or 16 (Article I), rounded down from the usual 75%. The round has no cutoff (only first rounds get one) and 333oh's per-attempt time limit, never a cumulative one. When 333oh has a single round, that round keeps the Ao5 format: dummy-wca makes the final head to head only when a round before it seeds the bracket (I1b), and doesn't generate seeding without one (I1c).
+In every generated competition where 333oh has two or more rounds, its final (`333oh-r2` with the defaults) has WCIF format `h`, head to head, for [FKMTime's head-to-head rounds](https://github.com/FKMTime/FKMTime/blob/main/docs/specs/SPEC-001-head-to-head.md). Regulation 9b7 allows it only for the final of 333, 444, 333bf and 333oh; the generator uses it for 333oh only. The round before it advances by ranking, so its `resultCondition` says how big the bracket is: 12 with the defaults, and always a bracket size Article I allows (4, 8, 12 or 16; 333oh caps at 12), rounded down from the usual 75%. The round has no cutoff (only first rounds get one) and 333oh's per-attempt time limit, never a cumulative one. When 333oh has a single round, that round keeps the Ao5 format: dummy-wca makes the final head to head only when a round before it seeds the bracket (I1b), and doesn't generate seeding without one (I1c).
 
 ### "Today"
 

@@ -1084,6 +1084,11 @@ async fn event_results_list_rounds_last_first_like_the_wca() {
         assert_eq!(body["rounds"][index]["id"], live["round_id"], "{}", wcif_id);
     }
     assert_eq!(event_results(&app, ID, "333oh").await.1, body, "stable");
+    assert_eq!(
+        [&body["rounds"][0]["id"], &body["rounds"][1]["id"]],
+        [11, 10],
+        "the ids in the README"
+    );
 
     assert_eq!(
         round_types(&event_results(&app, ID, "333").await.1),
