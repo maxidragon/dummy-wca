@@ -790,6 +790,18 @@ fn only_the_333oh_final_is_head_to_head() {
                     }
                     assert!(round["cutoff"].is_null(), "{}", round["id"]);
                     assert_eq!(round["timeLimit"]["cumulativeRoundIds"], json!([]));
+                    // One group in one room.
+                    assert_eq!(round["scrambleSetCount"], 1, "{}", round["id"]);
+                    let code = round["id"].as_str().unwrap();
+                    let in_rooms = wcif["schedule"]["venues"][0]["rooms"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .flat_map(|room| room["activities"].as_array().unwrap())
+                        .filter(|activity| activity["activityCode"] == code)
+                        .map(|activity| activity["childActivities"].as_array().unwrap().len())
+                        .collect::<Vec<_>>();
+                    assert_eq!(in_rooms, [1], "{}", code);
                     // Article I: a bracket of 4, 8, 12 or 16.
                     let size = match version {
                         Version::V1 => &rounds[index - 1]["advancementCondition"]["level"],

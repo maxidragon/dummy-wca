@@ -71,7 +71,8 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                 .map(|(index, &competitors)| {
                     let number = index as u32 + 1;
                     let head_to_head = head_to_head_final && number == round_count;
-                    let groups = if info.is_fewest_moves() {
+                    // A head-to-head round is one group in one room (SPEC-001).
+                    let groups = if info.is_fewest_moves() || head_to_head {
                         1
                     } else {
                         competitors.div_ceil(stations).max(1)
@@ -102,7 +103,7 @@ fn bracket_size(competitors: u32) -> u32 {
     [16, 12, 8, 4]
         .into_iter()
         .find(|size| *size <= competitors)
-        .unwrap_or(4)
+        .expect("a final has at least 6 competitors")
 }
 
 #[cfg(test)]

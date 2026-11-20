@@ -362,6 +362,14 @@ async fn a_head_to_head_round_is_listed_but_cannot_be_opened() {
     assert_eq!(status, StatusCode::OK, "{}", round);
     assert_eq!(round["format"], "h");
     assert_eq!(round_states(&app).await, ["ready", "pending"]);
+    let open_h2h = format!("{}/333oh-r2/open", ROUNDS);
+    let refused = json!("head-to-head rounds can't be opened in live results");
+    let (status, body) = put(&app, &open_h2h, DELEGATE).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::BAD_REQUEST, &refused),
+        "while pending"
+    );
 
     put(&app, &format!("{}/333oh-r1/open", ROUNDS), DELEGATE).await;
     finish_round(&state, "333oh-r1");
@@ -410,4 +418,11 @@ async fn a_head_to_head_round_is_listed_but_cannot_be_opened() {
         "head-to-head rounds can't be opened in live results"
     );
     assert_eq!(round_states(&app).await, ["open", "ready"]);
+
+    let quit_one = format!("{}/333oh-r2/{}", ROUNDS, advancing[0]);
+    let (status, body) = call(&app, Method::DELETE, &quit_one, Some(DELEGATE), None).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::BAD_REQUEST, &refused)
+    );
 }
