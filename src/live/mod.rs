@@ -159,6 +159,13 @@ fn bad_request(status: &str) -> ApiError {
     }
 }
 
+/// dummy-wca doesn't emulate head-to-head scoring, so it never gives a format
+/// `h` round live results. The WCA would open one, but never ranks its live
+/// results.
+fn head_to_head_refused() -> ApiError {
+    bad_request("head-to-head rounds can't be opened in live results")
+}
+
 /// `ActionController::ParameterMissing`.
 pub fn parameter_missing() -> ApiError {
     ApiError::new(StatusCode::BAD_REQUEST, -4000)
@@ -260,11 +267,7 @@ pub async fn open_round(
     let round = &definition.rounds[index];
     let now = Utc::now();
     if round.format.is_head_to_head() {
-        // The WCA keeps a head-to-head round's matches outside live results
-        // and never ranks its live results, so dummy-wca doesn't open one.
-        return Err(bad_request(
-            "head-to-head rounds can't be opened in live results",
-        ));
+        return Err(head_to_head_refused());
     }
     let body = state.live.with(&ctx.competition.id, |results| {
         let rounds = rounds(definition, results);
@@ -446,6 +449,10 @@ fn quit(
     singular: bool,
 ) -> Result<usize, ApiError> {
     let round = &definition.rounds[index];
+    if round.format.is_head_to_head() {
+        // Advancing someone else into the round would open it.
+        return Err(head_to_head_refused());
+    }
     let round_results = results.get(&round.wcif_id).cloned().unwrap_or_default();
     let quitting_results: Vec<&LiveResult> = round_results
         .iter()

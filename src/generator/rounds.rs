@@ -26,6 +26,9 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                 .filter(|person| person.is_accepted() && person.is_registered_for(info.id))
                 .count() as u32;
             let round_count = requested.min(max_rounds(registered));
+            // The final is head to head only when a round before it seeds the
+            // bracket (I1b); dummy-wca doesn't generate seeding without one (I1c).
+            let head_to_head_final = info.has_head_to_head_final() && round_count >= 2;
 
             let mut sizes = vec![registered];
             let mut advancements = Vec::new();
@@ -39,9 +42,14 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                     }
                 } else if is_final {
                     let cap = if info.popularity >= 0.5 { 16 } else { 12 };
+                    let level = (previous * 3 / 4).min(cap);
                     Advancement {
                         kind: "ranking",
-                        level: (previous * 3 / 4).min(cap),
+                        level: if head_to_head_final {
+                            bracket_size(level)
+                        } else {
+                            level
+                        },
                     }
                 } else {
                     Advancement {
@@ -62,10 +70,7 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                 .enumerate()
                 .map(|(index, &competitors)| {
                     let number = index as u32 + 1;
-                    // Only a final with a round before it to seed the bracket
-                    // from; a single round stays in the event's format.
-                    let head_to_head =
-                        info.has_head_to_head_final() && number == round_count && round_count >= 2;
+                    let head_to_head = head_to_head_final && number == round_count;
                     let groups = if info.is_fewest_moves() {
                         1
                     } else {
@@ -81,12 +86,7 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
                         },
                         competitors,
                         groups,
-                        // A head-to-head round has no cutoff.
-                        cutoff: if number == 1 && !head_to_head {
-                            info.cutoff
-                        } else {
-                            None
-                        },
+                        cutoff: if number == 1 { info.cutoff } else { None },
                         advancement: advancements.get(index).copied(),
                     }
                 })
@@ -94,4 +94,13 @@ pub fn build(config: &GeneratorConfig, persons: &[Person], stations: u32) -> Vec
             Event { info, rounds }
         })
         .collect()
+}
+
+/// The largest head-to-head bracket (Article I: 4, 8, 12 or 16) for at most
+/// `competitors`. A final always has at least 6, so at least 4 fit.
+fn bracket_size(competitors: u32) -> u32 {
+    [16, 12, 8, 4]
+        .into_iter()
+        .find(|size| *size <= competitors)
+        .unwrap_or(4)
 }

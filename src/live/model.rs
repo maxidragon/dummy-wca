@@ -4,7 +4,7 @@
 //!
 //! Rounds come from the competition's WCIF (v2), so a WCIF patch changes
 //! them too. Linked rounds aren't supported. Head-to-head rounds are listed
-//! but can't be opened: the WCA scores their matches outside live results.
+//! but can't be opened: dummy-wca doesn't emulate head-to-head scoring.
 
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};

@@ -135,12 +135,6 @@ pub struct Round {
     pub advancement: Option<Advancement>,
 }
 
-impl Round {
-    pub fn is_head_to_head(&self) -> bool {
-        self.format == HEAD_TO_HEAD
-    }
-}
-
 /// The WCIF format of a head-to-head round.
 pub const HEAD_TO_HEAD: &str = "h";
 

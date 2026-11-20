@@ -45,8 +45,9 @@ impl EventInfo {
 
     /// Whether the generated final is held head to head (WCIF format `h`).
     /// Regulation 9b7 allows it only for the final of 333, 444, 333bf and
-    /// 333oh; FKMTime's tests need one H2H round, and 333oh's final has about
-    /// 12 competitors, a typical bracket.
+    /// 333oh; FKMTime's tests need one H2H round, and 333oh's final has 12
+    /// competitors with the defaults. Such an event must have no cumulative
+    /// time limit, which a head-to-head round can't use.
     pub fn has_head_to_head_final(&self) -> bool {
         self.id == "333oh"
     }
@@ -366,6 +367,18 @@ mod tests {
     fn encodes_multi_blind_like_the_wca() {
         // 9/10 (8 points) in 58:30, 1 missed.
         assert_eq!(encode_multi_blind(9, 10, 3510), 910351001);
+    }
+
+    #[test]
+    fn head_to_head_finals_have_no_cumulative_limit() {
+        for event in EVENTS.iter().filter(|event| event.has_head_to_head_final()) {
+            assert!(!event.cumulative_limit, "{}", event.id);
+            assert!(
+                ["333", "444", "333bf", "333oh"].contains(&event.id),
+                "{} can't be head to head (9b7)",
+                event.id
+            );
+        }
     }
 
     #[test]

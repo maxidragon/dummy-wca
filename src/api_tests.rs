@@ -1116,8 +1116,9 @@ async fn event_results_answer_404_for_unknown_competitions_and_events() {
         body["error"],
         "Competition with id NoSuchOpen2026 not found"
     );
-    let (status, _) = event_results(&app, ID, "999").await;
+    let (status, body) = event_results(&app, ID, "999").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"], "Cached model Event ID not found: 999");
 
     // A WCA event the competition doesn't hold has no rounds.
     for event_id in ["555", "fto"] {
@@ -1141,6 +1142,57 @@ async fn event_results_serve_snapshots_from_their_wcif() {
         .map(|round| round["id"].as_u64().unwrap())
         .collect();
     assert_eq!(ids, [8, 7, 6]);
+}
+
+#[tokio::test]
+async fn event_results_mark_linked_rounds_from_a_v2_snapshot() {
+    let (status, body) = event_results(&app(), "CubeFactoryLeagueZgierz2026", "333").await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    let linked: Vec<&Value> = body["rounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|round| &round["isLinked"])
+        .collect();
+    assert_eq!(
+        linked,
+        [false, true, true],
+        "333-r1 and r2 are a dual round"
+    );
+}
+
+#[tokio::test]
+async fn event_results_follow_a_wcif_patch() {
+    let app = app();
+    let uri = format!("/api/v0/competitions/{}/wcif", ID);
+    let (_, wcif) = get(&app, &format!("{}/version/2", uri), Some(DELEGATE)).await;
+    let mut events = wcif["events"].clone();
+    let events_list = events.as_array_mut().unwrap();
+    // One round of 333 fewer, and a cutoff on 333oh's first round.
+    let three = events_list.iter_mut().find(|e| e["id"] == "333").unwrap();
+    three["rounds"].as_array_mut().unwrap().pop();
+    let oh = events_list.iter_mut().find(|e| e["id"] == "333oh").unwrap();
+    oh["rounds"][0]["cutoff"] = json!({ "numberOfAttempts": 2, "resultValue": 4000 });
+    let (_, before) = event_results(&app, ID, "333oh").await;
+
+    let (status, body) = call(
+        &app,
+        Method::PATCH,
+        &uri,
+        Some(DELEGATE),
+        Some(json!({ "events": events })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    let (_, after) = event_results(&app, ID, "333oh").await;
+    assert_eq!(round_types(&after), ["f", "d"]);
+    for index in 0..2 {
+        assert_eq!(
+            after["rounds"][index]["id"].as_u64().unwrap() + 1,
+            before["rounds"][index]["id"].as_u64().unwrap(),
+            "a round fewer before 333oh"
+        );
+    }
 }
 
 #[tokio::test]

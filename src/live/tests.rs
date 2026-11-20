@@ -387,4 +387,27 @@ async fn a_head_to_head_round_is_listed_but_cannot_be_opened() {
         ["open", "ready"],
         "round 1 not locked"
     );
+
+    // Quitting someone with a replacement doesn't open it either.
+    let advancing: Vec<u64> = results(&state, "333oh-r1")
+        .iter()
+        .filter(|result| result.advancing)
+        .map(|result| result.registration_id)
+        .collect();
+    let next = format!(
+        "{}/333oh-r2/next_if_quit?registration_id={}",
+        ROUNDS, advancing[0]
+    );
+    let (status, next) = call(&app, Method::GET, &next, Some(DELEGATE), None).await;
+    assert_eq!(status, StatusCode::OK, "{}", next);
+    let replacement = next["next_advancing"][0]["id"].as_u64().unwrap();
+    let body = json!({ "registration_ids": [advancing[0]], "advancing_ids": [replacement] });
+    let uri = format!("{}/333oh-r2/bulk_quit", ROUNDS);
+    let (status, body) = call(&app, Method::DELETE, &uri, Some(DELEGATE), Some(body)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{}", body);
+    assert_eq!(
+        body["status"],
+        "head-to-head rounds can't be opened in live results"
+    );
+    assert_eq!(round_states(&app).await, ["open", "ready"]);
 }

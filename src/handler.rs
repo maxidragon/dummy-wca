@@ -22,7 +22,10 @@ use crate::generator::{
     wcif::{self, Version},
     Competition,
 };
-use crate::live::model::{Definition, Round as LiveRound};
+use crate::live::{
+    self,
+    model::{Definition, Round as LiveRound},
+};
 use crate::schema::{
     ManagedCompetitionsOptions, OauthRequestOptions, OauthTokenRequestOptions, ResetOptions,
     SearchUsersOptions,
@@ -384,17 +387,16 @@ pub async fn get_event_results_handler(
     State(state): State<SharedState>,
     Path((id, event_id)): Path<(String, String)>,
 ) -> ApiResult {
-    let wcif = match state.generated(&id) {
-        Some(competition) => {
-            let mut data = wcif::wcif(&competition, Version::V2);
-            state.apply_patches(&id, &mut data);
-            data
-        }
+    let definition = match state.generated(&id) {
+        Some(competition) => live::definition(&state, &competition),
         None => {
-            let mut data = read_json_file(&format!("data/competitions/{}/wcif.json", id))
+            let snapshot =
+                |file: &str| read_json_file(&format!("data/competitions/{}/{}", id, file));
+            let mut data = snapshot("wcif_v2.json")
+                .or_else(|_| snapshot("wcif.json"))
                 .map_err(|_| v0_not_found(format!("Competition with id {} not found", id)))?;
             state.apply_patches(&id, &mut data);
-            data
+            Definition::from_wcif(&data)
         }
     };
     // The WCA raises on an unknown event id (a 500 there); 404 is what a
@@ -405,7 +407,6 @@ pub async fn get_event_results_handler(
             event_id
         )));
     }
-    let definition = Definition::from_wcif(&wcif);
     let mut rounds: Vec<&LiveRound> = definition
         .rounds
         .iter()
@@ -418,8 +419,11 @@ pub async fn get_event_results_handler(
             json!({
                 "id": round.db_id,
                 "roundTypeId": round.round_type_id(),
+                // Set by the WCA only on rounds whose H2H results it imported.
                 "isH2hMock": false,
-                "isLinked": false,
+                "isLinked": round.wcif["linkedRounds"]
+                    .as_array()
+                    .is_some_and(|linked| !linked.is_empty()),
                 "results": [],
             })
         })
