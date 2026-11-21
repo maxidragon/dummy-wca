@@ -341,3 +341,88 @@ async fn clearing_a_competitor_removes_their_attempts() {
     call(&app, Method::POST, &reset, None, None).await;
     assert_eq!(round_states(&app).await, ["ready", "pending"]);
 }
+
+/// The WCA scores head-to-head matches outside live results, so the round is
+/// listed, its previous round says who proceeds, and it can't be opened.
+#[tokio::test]
+async fn a_head_to_head_round_is_listed_but_cannot_be_opened() {
+    let state = Arc::new(AppState::new(config(&[
+        ("GENERATED_COMPETITORS", "40"),
+        ("GENERATED_EVENTS", "333oh:2"),
+    ])));
+    let app = create_router(state.clone());
+    let (status, round) = call(
+        &app,
+        Method::GET,
+        &format!("{}/333oh-r2", ROUNDS),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{}", round);
+    assert_eq!(round["format"], "h");
+    assert_eq!(round_states(&app).await, ["ready", "pending"]);
+    let open_h2h = format!("{}/333oh-r2/open", ROUNDS);
+    let refused = json!("head-to-head rounds can't be opened in live results");
+    let (status, body) = put(&app, &open_h2h, DELEGATE).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::BAD_REQUEST, &refused),
+        "while pending"
+    );
+
+    put(&app, &format!("{}/333oh-r1/open", ROUNDS), DELEGATE).await;
+    finish_round(&state, "333oh-r1");
+    assert_eq!(round_states(&app).await, ["open", "ready"]);
+    let bracket_size = round["participationRuleset"]["participationSource"]["resultCondition"]
+        ["value"]
+        .as_u64()
+        .unwrap();
+    let proceeding = results(&state, "333oh-r1")
+        .iter()
+        .filter(|result| result.advancing)
+        .count();
+    assert_eq!(proceeding as u64, bracket_size);
+
+    let (status, body) = put(&app, &format!("{}/333oh-r2/open", ROUNDS), DELEGATE).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body["status"],
+        "head-to-head rounds can't be opened in live results"
+    );
+    assert_eq!(
+        round_states(&app).await,
+        ["open", "ready"],
+        "round 1 not locked"
+    );
+
+    // Quitting someone with a replacement doesn't open it either.
+    let advancing: Vec<u64> = results(&state, "333oh-r1")
+        .iter()
+        .filter(|result| result.advancing)
+        .map(|result| result.registration_id)
+        .collect();
+    let next = format!(
+        "{}/333oh-r2/next_if_quit?registration_id={}",
+        ROUNDS, advancing[0]
+    );
+    let (status, next) = call(&app, Method::GET, &next, Some(DELEGATE), None).await;
+    assert_eq!(status, StatusCode::OK, "{}", next);
+    let replacement = next["next_advancing"][0]["id"].as_u64().unwrap();
+    let body = json!({ "registration_ids": [advancing[0]], "advancing_ids": [replacement] });
+    let uri = format!("{}/333oh-r2/bulk_quit", ROUNDS);
+    let (status, body) = call(&app, Method::DELETE, &uri, Some(DELEGATE), Some(body)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{}", body);
+    assert_eq!(
+        body["status"],
+        "head-to-head rounds can't be opened in live results"
+    );
+    assert_eq!(round_states(&app).await, ["open", "ready"]);
+
+    let quit_one = format!("{}/333oh-r2/{}", ROUNDS, advancing[0]);
+    let (status, body) = call(&app, Method::DELETE, &quit_one, Some(DELEGATE), None).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::BAD_REQUEST, &refused)
+    );
+}

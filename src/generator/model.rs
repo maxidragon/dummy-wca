@@ -125,6 +125,8 @@ pub struct Event {
 pub struct Round {
     pub id: String,
     pub number: u32,
+    /// WCIF round format: the event's, or `h` for a head-to-head final.
+    pub format: &'static str,
     /// Expected number of competitors (registrations, or the advancing count).
     pub competitors: u32,
     pub groups: u32,
@@ -132,6 +134,9 @@ pub struct Round {
     /// How competitors advance to the next round; `None` for the final.
     pub advancement: Option<Advancement>,
 }
+
+/// The WCIF format of a head-to-head round.
+pub const HEAD_TO_HEAD: &str = "h";
 
 #[derive(Clone, Copy)]
 pub struct Advancement {

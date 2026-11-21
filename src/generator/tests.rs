@@ -543,10 +543,16 @@ fn public_view_hides_private_data() {
 #[test]
 fn generating_is_quick() {
     let config = config(&[("GENERATED_COMPETITORS", "500"), ("GENERATED_DAYS", "3")]);
-    let started = Instant::now();
-    let competition = generate(&config, date("2026-10-26"));
-    let _ = wcif::wcif(&competition, Version::V2);
-    let elapsed = started.elapsed();
+    // The best of three, so tests running in parallel don't count as slowness.
+    let elapsed = (0..3)
+        .map(|_| {
+            let started = Instant::now();
+            let competition = generate(&config, date("2026-10-26"));
+            let _ = wcif::wcif(&competition, Version::V2);
+            started.elapsed()
+        })
+        .min()
+        .unwrap();
     // The server is built in release mode; debug builds are a few times slower.
     let budget = if cfg!(debug_assertions) { 250 } else { 50 };
     println!("generated 500 competitors in {:?}", elapsed);
@@ -609,6 +615,22 @@ fn default_competition_covers_what_fkmtime_uses() {
     });
     has_round("Bo5", &|r| r["format"] == "5");
     has_round("Bo3", &|r| r["format"] == "3");
+
+    // SPEC-001: a head-to-head final, seeded from a ranking round before it.
+    let oh = wcif["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|event| event["id"] == "333oh")
+        .unwrap();
+    let oh_rounds = oh["rounds"].as_array().unwrap();
+    assert_eq!(oh_rounds.len(), 2);
+    let final_round = &oh_rounds[1];
+    assert_eq!(final_round["id"], "333oh-r2");
+    assert_eq!(final_round["format"], "h");
+    let condition = &final_round["participationRuleset"]["participationSource"]["resultCondition"];
+    assert_eq!(condition["type"], "ranking");
+    assert_eq!(condition["value"], 12, "a bracket of 12");
 
     // An event with 3 rounds and advancement through participationRuleset.
     let three_rounds = wcif["events"]
@@ -735,4 +757,81 @@ fn default_competition_covers_what_fkmtime_uses() {
         .collect();
     assert!(judges.iter().any(|p| p["countryIso2"] == "PL"));
     assert!(judges.iter().any(|p| p["countryIso2"] != "PL"));
+}
+
+/// Regulation 9b7: head to head only in the final. The generator makes it
+/// 333oh's, in every generated competition, and nowhere else.
+#[test]
+fn only_the_333oh_final_is_head_to_head() {
+    let mut configs = vec![
+        vec![],
+        vec![("GENERATED_EVENTS", "333bf:2,333oh:3,444:2")],
+        vec![
+            ("GENERATED_COMPETITORS", "250"),
+            ("GENERATED_EVENTS", "333:4,333oh:4"),
+        ],
+    ];
+    // Small competitions, whose 333oh final would otherwise get 6 to 11.
+    for competitors in ["20", "24", "28", "32", "36", "44"] {
+        for events in ["333oh:2", "333oh:3"] {
+            configs.push(vec![
+                ("GENERATED_COMPETITORS", competitors),
+                ("GENERATED_EVENTS", events),
+            ]);
+        }
+    }
+    let mut sizes = HashSet::new();
+    for vars in configs {
+        let competition = generate(&config(&vars), date("2026-10-26"));
+        for version in [Version::V1, Version::V2] {
+            let wcif = wcif::wcif(&competition, version);
+            for event in wcif["events"].as_array().unwrap() {
+                let rounds = event["rounds"].as_array().unwrap();
+                for (index, round) in rounds.iter().enumerate() {
+                    let is_final = index + 1 == rounds.len();
+                    let expected = event["id"] == "333oh" && is_final && index > 0;
+                    assert_eq!(round["format"] == "h", expected, "{}", round["id"]);
+                    if !expected {
+                        continue;
+                    }
+                    assert!(round["cutoff"].is_null(), "{}", round["id"]);
+                    assert_eq!(round["timeLimit"]["cumulativeRoundIds"], json!([]));
+                    // One group in one room.
+                    assert_eq!(round["scrambleSetCount"], 1, "{}", round["id"]);
+                    let code = round["id"].as_str().unwrap();
+                    let in_rooms = wcif["schedule"]["venues"][0]["rooms"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .flat_map(|room| room["activities"].as_array().unwrap())
+                        .filter(|activity| activity["activityCode"] == code)
+                        .map(|activity| activity["childActivities"].as_array().unwrap().len())
+                        .collect::<Vec<_>>();
+                    assert_eq!(in_rooms, [1], "{}", code);
+                    // Article I: a bracket of 4, 8, 12 or 16.
+                    let size = match version {
+                        Version::V1 => &rounds[index - 1]["advancementCondition"]["level"],
+                        Version::V2 => {
+                            &round["participationRuleset"]["participationSource"]["resultCondition"]
+                                ["value"]
+                        }
+                    };
+                    let size = size.as_u64().unwrap();
+                    assert!([4, 8, 12, 16].contains(&size), "{}: {}", round["id"], size);
+                    sizes.insert(size);
+                }
+            }
+        }
+    }
+    assert!(sizes.len() >= 2, "only brackets of {:?}", sizes);
+}
+
+#[test]
+fn a_single_333oh_round_keeps_its_format() {
+    let competition = generate(
+        &config(&[("GENERATED_EVENTS", "333oh:1")]),
+        date("2026-10-26"),
+    );
+    let wcif = wcif::wcif(&competition, Version::V2);
+    assert_eq!(wcif["events"][0]["rounds"][0]["format"], "a");
 }

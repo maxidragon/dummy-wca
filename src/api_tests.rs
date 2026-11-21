@@ -1038,3 +1038,184 @@ async fn wcif_persons_carry_their_registration_id() {
     assert!(!ids.is_empty());
     assert_eq!(unique.len(), ids.len(), "registration ids are unique");
 }
+
+async fn event_results(app: &Router, competition_id: &str, event_id: &str) -> (StatusCode, Value) {
+    get(
+        app,
+        &format!(
+            "/api/v0/competitions/{}/results/{}",
+            competition_id, event_id
+        ),
+        None,
+    )
+    .await
+}
+
+fn round_types(body: &Value) -> Vec<&str> {
+    body["rounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|round| round["roundTypeId"].as_str().unwrap())
+        .collect()
+}
+
+#[tokio::test]
+async fn event_results_list_rounds_last_first_like_the_wca() {
+    let app = app();
+    let (status, body) = event_results(&app, ID, "333oh").await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    assert_eq!(body["id"], "333oh");
+    assert_eq!(round_types(&body), ["f", "1"]);
+    let round = &body["rounds"][0];
+    assert_eq!(round["isH2hMock"], false);
+    assert_eq!(round["isLinked"], false);
+    assert_eq!(round["results"], json!([]));
+
+    // The ids are the live results API's `round_id`s.
+    for (index, wcif_id) in [(0, "333oh-r2"), (1, "333oh-r1")] {
+        let (_, live) = get(
+            &app,
+            &format!("/api/v1/competitions/{}/live/rounds/{}", ID, wcif_id),
+            None,
+        )
+        .await;
+        assert!(live["round_id"].is_u64(), "{}", live);
+        assert_eq!(body["rounds"][index]["id"], live["round_id"], "{}", wcif_id);
+    }
+    assert_eq!(event_results(&app, ID, "333oh").await.1, body, "stable");
+    assert_eq!(
+        [&body["rounds"][0]["id"], &body["rounds"][1]["id"]],
+        [11, 10],
+        "the ids in the README"
+    );
+
+    assert_eq!(
+        round_types(&event_results(&app, ID, "333").await.1),
+        ["f", "2", "1"]
+    );
+    // A cutoff makes a round combined: 444's first round, 666's only one.
+    assert_eq!(
+        round_types(&event_results(&app, ID, "444").await.1),
+        ["f", "d"]
+    );
+    assert_eq!(round_types(&event_results(&app, ID, "666").await.1), ["c"]);
+
+    let mut ids: Vec<u64> = Vec::new();
+    for event_id in ["333", "222", "444", "333oh"] {
+        let (_, body) = event_results(&app, ID, event_id).await;
+        for round in body["rounds"].as_array().unwrap() {
+            ids.push(round["id"].as_u64().unwrap());
+        }
+    }
+    let unique: std::collections::HashSet<_> = ids.iter().collect();
+    assert_eq!(unique.len(), ids.len(), "round ids are unique: {:?}", ids);
+}
+
+#[tokio::test]
+async fn event_results_answer_404_for_unknown_competitions_and_events() {
+    let app = app();
+    let (status, body) = event_results(&app, "NoSuchOpen2026", "333").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        body["error"],
+        "Competition with id NoSuchOpen2026 not found"
+    );
+    let (status, body) = event_results(&app, ID, "999").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"], "Cached model Event ID not found: 999");
+
+    // A WCA event the competition doesn't hold has no rounds.
+    for event_id in ["555", "fto"] {
+        let (status, body) = event_results(&app, ID, event_id).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, json!({ "id": event_id, "rounds": [] }));
+    }
+}
+
+#[tokio::test]
+async fn event_results_serve_snapshots_from_their_wcif() {
+    // 333 (3 rounds) and 222 (2) come first, so 444's rounds are 6 to 8.
+    // Its first two rounds have cutoffs.
+    let (status, body) = event_results(&app(), "CFLBrzeziny2025", "444").await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    assert_eq!(round_types(&body), ["f", "e", "d"]);
+    let ids: Vec<u64> = body["rounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|round| round["id"].as_u64().unwrap())
+        .collect();
+    assert_eq!(ids, [8, 7, 6]);
+}
+
+#[tokio::test]
+async fn event_results_mark_linked_rounds_from_a_v2_snapshot() {
+    let (status, body) = event_results(&app(), "CubeFactoryLeagueZgierz2026", "333").await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    let linked: Vec<&Value> = body["rounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|round| &round["isLinked"])
+        .collect();
+    assert_eq!(
+        linked,
+        [false, true, true],
+        "333-r1 and r2 are a dual round"
+    );
+}
+
+#[tokio::test]
+async fn event_results_follow_a_wcif_patch() {
+    let app = app();
+    let uri = format!("/api/v0/competitions/{}/wcif", ID);
+    let (_, wcif) = get(&app, &format!("{}/version/2", uri), Some(DELEGATE)).await;
+    let mut events = wcif["events"].clone();
+    let events_list = events.as_array_mut().unwrap();
+    // One round of 333 fewer, and a cutoff on 333oh's first round.
+    let three = events_list.iter_mut().find(|e| e["id"] == "333").unwrap();
+    three["rounds"].as_array_mut().unwrap().pop();
+    let oh = events_list.iter_mut().find(|e| e["id"] == "333oh").unwrap();
+    oh["rounds"][0]["cutoff"] = json!({ "numberOfAttempts": 2, "resultValue": 4000 });
+    let (_, before) = event_results(&app, ID, "333oh").await;
+
+    let (status, body) = call(
+        &app,
+        Method::PATCH,
+        &uri,
+        Some(DELEGATE),
+        Some(json!({ "events": events })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    let (_, after) = event_results(&app, ID, "333oh").await;
+    assert_eq!(round_types(&after), ["f", "d"]);
+    for index in 0..2 {
+        assert_eq!(
+            after["rounds"][index]["id"].as_u64().unwrap() + 1,
+            before["rounds"][index]["id"].as_u64().unwrap(),
+            "a round fewer before 333oh"
+        );
+    }
+}
+
+#[tokio::test]
+async fn created_competitions_get_a_head_to_head_333oh_final() {
+    let app = app();
+    let form = "name=Small+Test+Open&start_date=2026-11-14&days=1&competitors=40&rooms=1\
+        &timezone=Europe%2FBerlin&seed=7&event_333=1&event_333oh=2";
+    let (status, _) = submit(&app, "/dummy/competitions", form).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let (_, wcif) = get(
+        &app,
+        "/api/v0/competitions/SmallTestOpen2026/wcif/version/2",
+        None,
+    )
+    .await;
+    assert_eq!(wcif["events"][1]["rounds"][1]["id"], "333oh-r2");
+    assert_eq!(wcif["events"][1]["rounds"][1]["format"], "h");
+    let (status, body) = event_results(&app, "SmallTestOpen2026", "333oh").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(round_types(&body), ["f", "1"]);
+}

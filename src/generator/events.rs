@@ -43,6 +43,16 @@ impl EventInfo {
         self.id == "333mbf"
     }
 
+    /// Whether the generated final is held head to head (WCIF format `h`).
+    /// Regulation 9b7 allows it only for the final of 333, 444, 333bf and
+    /// 333oh; FKMTime's tests need one H2H round, and 333oh's final has 12
+    /// competitors with the defaults. Such an event must have no cumulative
+    /// time limit: Article I doesn't say whether a head-to-head round may
+    /// have one, and FKMTime refuses it (SPEC-001).
+    pub fn has_head_to_head_final(&self) -> bool {
+        self.id == "333oh"
+    }
+
     /// Advancement and cutoffs compare averages for Ao5/Mo3, singles otherwise.
     pub fn ranks_by_average(&self) -> bool {
         matches!(self.format, "a" | "m")
@@ -331,6 +341,14 @@ pub const EVENTS: [EventInfo; 17] = [
     ),
 ];
 
+/// WCA events the generator doesn't hold: FTO and the retired ones. The
+/// WCA's API still knows them.
+const OTHER_WCA_EVENT_IDS: [&str; 5] = ["fto", "333ft", "magic", "mmagic", "333mbo"];
+
+pub fn is_wca_event(id: &str) -> bool {
+    find(id).is_some() || OTHER_WCA_EVENT_IDS.contains(&id)
+}
+
 pub fn find(id: &str) -> Option<&'static EventInfo> {
     EVENTS.iter().find(|event| event.id == id)
 }
@@ -350,6 +368,18 @@ mod tests {
     fn encodes_multi_blind_like_the_wca() {
         // 9/10 (8 points) in 58:30, 1 missed.
         assert_eq!(encode_multi_blind(9, 10, 3510), 910351001);
+    }
+
+    #[test]
+    fn head_to_head_finals_have_no_cumulative_limit() {
+        for event in EVENTS.iter().filter(|event| event.has_head_to_head_final()) {
+            assert!(!event.cumulative_limit, "{}", event.id);
+            assert!(
+                ["333", "444", "333bf", "333oh"].contains(&event.id),
+                "{} can't be head to head (9b7)",
+                event.id
+            );
+        }
     }
 
     #[test]
