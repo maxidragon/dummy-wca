@@ -404,6 +404,7 @@ pub fn competition_info(competition: &Competition) -> Value {
         "on_the_spot_registration": false,
         "base_entry_fee_lowest_denomination": competition.host.base_entry_fee,
         "currency_code": competition.host.currency_code,
+        "currency_subunit_to_unit": competition.host.currency_subunit_to_unit,
         "event_ids": competition.events.iter().map(|event| event.info.id).collect::<Vec<_>>(),
         "main_event_id": competition.events[0].info.id,
         "url": format!("http://localhost:3000/competitions/{}", competition.id),

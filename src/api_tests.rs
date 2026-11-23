@@ -1135,6 +1135,28 @@ async fn competitions_say_how_results_are_entered() {
 }
 
 #[tokio::test]
+async fn competition_info_says_how_big_the_currency_unit_is() {
+    let app = app();
+    let (_, info) = get(&app, &format!("/api/v0/competitions/{}", ID), None).await;
+    assert_eq!(info["currency_code"], "PLN");
+    assert_eq!(info["currency_subunit_to_unit"], 100);
+
+    let form = "name=Yen+Test+Open&start_date=2026-11-14&event_333=1&timezone=Asia%2FTokyo";
+    assert_eq!(
+        submit(&app, "/dummy/competitions", form).await.0,
+        StatusCode::SEE_OTHER
+    );
+    let (_, info) = get(&app, "/api/v0/competitions/YenTestOpen2026", None).await;
+    assert_eq!(info["currency_code"], "JPY");
+    assert_eq!(info["currency_subunit_to_unit"], 1);
+
+    let (status, info) = get(&app, "/api/v0/competitions/SLSFinal2024", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(info["currency_code"], "PLN");
+    assert_eq!(info["currency_subunit_to_unit"], 100);
+}
+
+#[tokio::test]
 async fn wcif_persons_carry_their_registration_id() {
     let (_, wcif) = get(
         &app(),

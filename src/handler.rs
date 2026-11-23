@@ -413,11 +413,32 @@ pub async fn get_competition_info_handler(
     }
     let file_path = &format!("data/competitions/{}/competition.json", id);
     match read_json_file(file_path) {
-        Ok(data) => Ok(Json(data)),
+        Ok(mut data) => {
+            add_currency_subunit(&mut data);
+            Ok(Json(data))
+        }
         Err(_) => Err((
             StatusCode::NOT_FOUND,
             Json(json!({"status": "error","message": "ID not found"})),
         )),
+    }
+}
+
+/// Snapshots were taken before the WCA added `currency_subunit_to_unit`, so
+/// it is worked out from their `currency_code`, unless they have it.
+fn add_currency_subunit(info: &mut Value) {
+    let Some(info) = info.as_object_mut() else {
+        return;
+    };
+    if info.contains_key("currency_subunit_to_unit") {
+        return;
+    }
+    let subunit = info
+        .get("currency_code")
+        .and_then(Value::as_str)
+        .and_then(names::currency_subunit_to_unit);
+    if let Some(subunit) = subunit {
+        info.insert("currency_subunit_to_unit".into(), subunit.into());
     }
 }
 

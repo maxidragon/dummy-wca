@@ -122,10 +122,22 @@ pub struct Host {
     pub timezone: &'static str,
     pub country_iso2: &'static str,
     pub currency_code: &'static str,
+    /// How many of the currency's lowest denomination make one unit, as the
+    /// WCA's `currency_subunit_to_unit` (the Money gem's `subunit_to_unit`).
+    pub currency_subunit_to_unit: u32,
+    /// In the currency's lowest denomination.
     pub base_entry_fee: u32,
     /// Somewhere inside the country, not a real venue.
     pub latitude_microdegrees: i64,
     pub longitude_microdegrees: i64,
+}
+
+/// The WCA's `currency_subunit_to_unit` for a currency some host uses.
+pub fn currency_subunit_to_unit(currency_code: &str) -> Option<u32> {
+    HOSTS
+        .iter()
+        .find(|host| host.currency_code == currency_code)
+        .map(|host| host.currency_subunit_to_unit)
 }
 
 pub const HOSTS: [Host; 13] = [
@@ -133,6 +145,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Europe/Warsaw",
         country_iso2: "PL",
         currency_code: "PLN",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 5000,
         latitude_microdegrees: 52_000_000,
         longitude_microdegrees: 19_000_000,
@@ -141,6 +154,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Europe/Berlin",
         country_iso2: "DE",
         currency_code: "EUR",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 1500,
         latitude_microdegrees: 51_000_000,
         longitude_microdegrees: 10_000_000,
@@ -149,6 +163,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Europe/Prague",
         country_iso2: "CZ",
         currency_code: "CZK",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 30000,
         latitude_microdegrees: 49_800_000,
         longitude_microdegrees: 15_500_000,
@@ -157,6 +172,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Europe/London",
         country_iso2: "GB",
         currency_code: "GBP",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 1500,
         latitude_microdegrees: 52_500_000,
         longitude_microdegrees: -1_500_000,
@@ -165,6 +181,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Europe/Paris",
         country_iso2: "FR",
         currency_code: "EUR",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 1500,
         latitude_microdegrees: 46_500_000,
         longitude_microdegrees: 2_500_000,
@@ -173,6 +190,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Europe/Madrid",
         country_iso2: "ES",
         currency_code: "EUR",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 1500,
         latitude_microdegrees: 40_000_000,
         longitude_microdegrees: -3_700_000,
@@ -181,6 +199,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "America/New_York",
         country_iso2: "US",
         currency_code: "USD",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 3000,
         latitude_microdegrees: 40_000_000,
         longitude_microdegrees: -76_000_000,
@@ -189,6 +208,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "America/Chicago",
         country_iso2: "US",
         currency_code: "USD",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 3000,
         latitude_microdegrees: 41_000_000,
         longitude_microdegrees: -89_000_000,
@@ -197,6 +217,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "America/Los_Angeles",
         country_iso2: "US",
         currency_code: "USD",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 3000,
         latitude_microdegrees: 36_000_000,
         longitude_microdegrees: -119_000_000,
@@ -205,6 +226,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "America/Toronto",
         country_iso2: "CA",
         currency_code: "CAD",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 3500,
         latitude_microdegrees: 44_000_000,
         longitude_microdegrees: -79_000_000,
@@ -213,6 +235,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "America/Sao_Paulo",
         country_iso2: "BR",
         currency_code: "BRL",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 8000,
         latitude_microdegrees: -23_000_000,
         longitude_microdegrees: -47_000_000,
@@ -221,6 +244,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Australia/Sydney",
         country_iso2: "AU",
         currency_code: "AUD",
+        currency_subunit_to_unit: 100,
         base_entry_fee: 4000,
         latitude_microdegrees: -33_500_000,
         longitude_microdegrees: 150_500_000,
@@ -229,6 +253,7 @@ pub const HOSTS: [Host; 13] = [
         timezone: "Asia/Tokyo",
         country_iso2: "JP",
         currency_code: "JPY",
+        currency_subunit_to_unit: 1,
         base_entry_fee: 3000,
         latitude_microdegrees: 35_500_000,
         longitude_microdegrees: 139_500_000,
