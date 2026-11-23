@@ -313,9 +313,12 @@ pub fn user_by_wca_id(competition: &Competition, wca_id: &str) -> Option<Value> 
 
 /// Everyone with a WCA ID, in the `/api/v0/persons` shape.
 pub fn person_entries(competition: &Competition) -> Vec<Value> {
-    let accounts = ACCOUNTS
-        .iter()
-        .map(|account| account_user(account, competition));
+    let accounts = ACCOUNTS.iter().map(|account| {
+        (
+            account_user(account, competition),
+            competition.person_by_wca_id(account.wca_id),
+        )
+    });
     let persons = competition
         .persons
         .iter()
@@ -323,20 +326,36 @@ pub fn person_entries(competition: &Competition) -> Vec<Value> {
             person.wca_id.is_some()
                 && names::account(person.wca_id.as_deref().unwrap_or_default()).is_none()
         })
-        .map(person_user);
+        .map(|person| (person_user(person), Some(person)));
     accounts
         .chain(persons)
-        .map(|mut user| {
+        .map(|(mut user, person)| {
             user["class"] = json!("person");
             json!({
                 "person": user,
                 "competition_count": 1,
-                "personal_records": {},
+                "personal_records": person.map(personal_records).unwrap_or_else(|| json!({})),
                 "medals": { "gold": 0, "silver": 0, "bronze": 0, "total": 0 },
                 "records": { "national": 0, "continental": 0, "world": 0, "total": 0 },
             })
         })
         .collect()
+}
+
+/// The WCA's `personal_records`: by event id, the `single` and (where there
+/// is one) `average` with their `best` and ranks.
+fn personal_records(person: &Person) -> Value {
+    let mut records = serde_json::Map::new();
+    for pb in &person.personal_bests {
+        let event = records.entry(pb.event_id).or_insert_with(|| json!({}));
+        event[pb.kind] = json!({
+            "best": pb.value,
+            "world_rank": pb.world_ranking,
+            "continent_rank": pb.continental_ranking,
+            "country_rank": pb.national_ranking,
+        });
+    }
+    Value::Object(records)
 }
 
 fn staff(competition: &Competition, role: &str) -> Vec<Value> {

@@ -140,7 +140,6 @@ A person's public profile, as on the WCA: `wca_id`, `name`, `gender`, `url`, `co
 dummy-wca has no results, so the parts the WCA works out from them are empty or approximate:
 - `completed_solves_count` is 0, `previous_persons` is empty, and `championship_podium_results` has an empty `world`, `continental`, `greater_china` and `national`.
 - `event_ids_with_results` lists the events the person has a personal record in, in the WCA's event order, with retired events last. The WCA also lists events where the person never had a success.
-- Generated people have no personal records, so their `ranks_by_event` is empty, as in `/api/v0/persons`.
 
 An unknown WCA ID gives the WCA's 404: `{"error": "Couldn't find Person with [WHERE ...]", "data": {"model": "Person", "id": null}}`. The person results and records endpoints (`.../results`, `.../records`) aren't emulated.
 

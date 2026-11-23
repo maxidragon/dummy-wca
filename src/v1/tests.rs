@@ -412,6 +412,13 @@ async fn generated_people_have_a_person_page_too() {
     assert_eq!(person["wca_id"], "2012VAQR01");
     assert_eq!(person["delegate_status"], "delegate");
     assert_eq!(person["avatar"]["is_default"], true);
+    let ranks = person["ranks_by_event"].as_object().unwrap();
+    assert!(!ranks.is_empty(), "generated people have ranks");
+    assert!(ranks
+        .values()
+        .all(|ranks| ranks["single"]["world_rank"].is_u64()));
+    let events = person["event_ids_with_results"].as_array().unwrap();
+    assert_eq!(events.len(), ranks.len());
 
     let (_, admin) = v1_person(&app, "2011ULQA01").await;
     assert_eq!(

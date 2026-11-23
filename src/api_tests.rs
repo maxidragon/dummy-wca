@@ -737,6 +737,61 @@ async fn users_and_persons_include_generated_people() {
 }
 
 #[tokio::test]
+async fn generated_people_have_their_wcif_personal_bests_as_personal_records() {
+    let app = app();
+    let (_, wcif) = get(
+        &app,
+        &format!("/api/v0/competitions/{}/wcif/version/2", ID),
+        None,
+    )
+    .await;
+    // A generated person and an account (the delegate), each with results.
+    let with_bests = |wca_id: Option<&str>| {
+        wcif["persons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|person| {
+                person["wcaId"].is_string()
+                    && wca_id.is_none_or(|id| person["wcaId"] == id)
+                    && wca_id.is_some() == (person["wcaUserId"].as_u64() < Some(9_100_000))
+                    && !person["personalBests"].as_array().unwrap().is_empty()
+            })
+            .unwrap()
+            .clone()
+    };
+    for generated in [with_bests(None), with_bests(Some("2012VAQR01"))] {
+        let wca_id = generated["wcaId"].as_str().unwrap();
+        let (_, person) = get(&app, &format!("/api/v0/persons/{}", wca_id), None).await;
+        let records = person["personal_records"].as_object().unwrap();
+        let bests = generated["personalBests"].as_array().unwrap();
+        assert_eq!(
+            records
+                .values()
+                .map(|r| r.as_object().unwrap().len())
+                .sum::<usize>(),
+            bests.len()
+        );
+        for best in bests {
+            let record =
+                &records[best["eventId"].as_str().unwrap()][best["type"].as_str().unwrap()];
+            assert_eq!(
+                *record,
+                json!({
+                    "best": best["value"],
+                    "world_rank": best["worldRanking"],
+                    "continent_rank": best["continentalRanking"],
+                    "country_rank": best["nationalRanking"],
+                }),
+                "{} {}",
+                wca_id,
+                best
+            );
+        }
+    }
+}
+
+#[tokio::test]
 async fn authorize_page_offers_the_generated_accounts() {
     let uri = "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=public&response_type=code&client_id=example-application-id";
     let (status, page) = get(&app(), uri, None).await;
