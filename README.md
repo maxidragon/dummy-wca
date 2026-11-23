@@ -32,6 +32,8 @@ For the generated competition's accounts, `start` and `end` filter like on the W
 
 Returns the information of a competition. Like on the WCA, it includes `scoretaking_software`: `external`, `wca_live` or `internal`. Generated competitions take it from `GENERATED_SCORETAKING_SOFTWARE` or the page's form.
 
+Like on the WCA, it also includes `currency_subunit_to_unit` next to `currency_code`: how many of the currency's lowest denomination make one unit (100 for PLN, 1 for JPY), to turn `base_entry_fee_lowest_denomination` into a price. Snapshots, taken before the WCA added it, get it from their `currency_code`.
+
 ### `GET /api/v0/competitions/:id/results/:event_id`
 
 An event's rounds, last round first, like the WCA's `event_results`. Public, no token needed.
