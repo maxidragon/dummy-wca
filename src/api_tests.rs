@@ -413,6 +413,11 @@ async fn patch_saves_assignments_until_reset() {
 }
 
 async fn token_request(app: &Router, form: &str) -> (StatusCode, Value) {
+    let client = "client_id=example-application-id&client_secret=example-secret";
+    raw_token_request(app, &format!("{}&{}", client, form)).await
+}
+
+async fn raw_token_request(app: &Router, form: &str) -> (StatusCode, Value) {
     let response = app
         .clone()
         .oneshot(
@@ -420,10 +425,7 @@ async fn token_request(app: &Router, form: &str) -> (StatusCode, Value) {
                 .method(Method::POST)
                 .uri("/oauth/token")
                 .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(format!(
-                    "client_id=example-application-id&client_secret=example-secret&{}",
-                    form
-                )))
+                .body(Body::from(form.to_string()))
                 .unwrap(),
         )
         .await
@@ -744,7 +746,7 @@ async fn authorize_page_offers_the_generated_accounts() {
     assert!(page.contains("login('2012VAQR01')"));
     assert!(page.contains("login('2013ROGA02')"));
     assert!(
-        page.contains("code-${wcaId}-public`"),
+        page.contains(r#"<div id="code_suffix" style="display: none;">-public</div>"#),
         "the code carries the scope"
     );
 }
@@ -757,7 +759,7 @@ async fn authorize_page_passes_requested_scopes_and_refuses_unknown_ones() {
     assert!(page
         .as_str()
         .unwrap()
-        .contains("code-${wcaId}-public,manage_registrations`"));
+        .contains(r#"style="display: none;">-public,manage_registrations</div>"#));
 
     let uri = "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=everything&response_type=code&client_id=example-application-id";
     assert_eq!(get(&app(), uri, None).await.0, StatusCode::BAD_REQUEST);
@@ -769,6 +771,122 @@ async fn authorize_page_keeps_the_state_for_the_redirect() {
     let (status, page) = get(&app(), uri, None).await;
     assert_eq!(status, StatusCode::OK);
     assert!(page.as_str().unwrap().contains("abc-123"));
+}
+
+// S256_CHALLENGE is base64url(SHA-256(VERIFIER)), worked out outside Rust.
+const VERIFIER: &str = "dBjftJeZ4CVP-mJ92K1qW-g7wEnzyW2eGO40wjPsUEo";
+const S256_CHALLENGE: &str = "qzQb9tSSnS0U71xfMidDXx1f5DWgBrv-BVcnFnWJC8E";
+
+const PUBLIC_CLIENT: &str = "client_id=example-application-id-public";
+
+#[tokio::test]
+async fn authorize_page_puts_the_pkce_challenge_in_the_code() {
+    let uri = format!(
+        "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=public&response_type=code\
+         &client_id=example-application-id-public&code_challenge={}&code_challenge_method=S256",
+        S256_CHALLENGE
+    );
+    let (status, page) = get(&app(), &uri, None).await;
+    assert_eq!(status, StatusCode::OK);
+    let suffix = format!(">-public-S256-{}</div>", S256_CHALLENGE);
+    assert!(page.as_str().unwrap().contains(&suffix));
+}
+
+#[tokio::test]
+async fn authorize_page_refuses_a_challenge_without_a_supported_method() {
+    for method in ["", "&code_challenge_method=sha512"] {
+        let uri = format!(
+            "/oauth/authorize?redirect_uri=http://localhost/auth/login&scope=public\
+             &response_type=code&client_id=example-application-id&code_challenge=abc{}",
+            method
+        );
+        let (status, body) = get(&app(), &uri, None).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["error"], "invalid_code_challenge_method");
+        assert_eq!(
+            body["error_description"],
+            "The code_challenge_method must be one of plain, S256."
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_public_client_signs_in_with_pkce_and_no_secret() {
+    let app = app();
+    let code = format!("code-2012VAQR01-public-S256-{}", S256_CHALLENGE);
+    let form = format!(
+        "{}&grant_type=authorization_code&code={}&code_verifier={}",
+        PUBLIC_CLIENT, code, VERIFIER
+    );
+    let (status, body) = raw_token_request(&app, &form).await;
+    assert_eq!(status, StatusCode::OK, "{}", body);
+    assert_eq!(body["scope"], "public");
+
+    let form = format!(
+        "{}&grant_type=refresh_token&refresh_token={}",
+        PUBLIC_CLIENT,
+        body["refresh_token"].as_str().unwrap()
+    );
+    assert_eq!(raw_token_request(&app, &form).await.0, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn a_pkce_code_needs_the_right_verifier_like_doorkeeper() {
+    let app = app();
+    let code = format!("code-2012VAQR01-public-plain-{}", VERIFIER);
+    let exchange = |verifier: &str| {
+        format!(
+            "grant_type=authorization_code&code={}&code_verifier={}",
+            code, verifier
+        )
+    };
+
+    let (status, body) = token_request(&app, &exchange("")).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "invalid_request");
+    assert_eq!(
+        body["error_description"],
+        "Missing required parameter: code_verifier."
+    );
+
+    let (status, body) = token_request(&app, &exchange("not-the-verifier")).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "invalid_grant");
+
+    assert_eq!(
+        token_request(&app, &exchange(VERIFIER)).await.0,
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn a_verifier_for_a_code_without_a_challenge_is_refused() {
+    let form = format!(
+        "grant_type=authorization_code&code=code-2012VAQR01&code_verifier={}",
+        VERIFIER
+    );
+    let (status, body) = token_request(&app(), &form).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "invalid_grant");
+}
+
+#[tokio::test]
+async fn only_the_public_client_may_leave_out_its_secret() {
+    let app = app();
+    let without_secret =
+        "client_id=example-application-id&grant_type=authorization_code&code=code-2012VAQR01";
+    assert_eq!(
+        raw_token_request(&app, without_secret).await.0,
+        StatusCode::NOT_FOUND
+    );
+    let wrong_secret = format!(
+        "{}&client_secret=wrong&grant_type=authorization_code&code=code-2012VAQR01",
+        PUBLIC_CLIENT
+    );
+    assert_eq!(
+        raw_token_request(&app, &wrong_secret).await.0,
+        StatusCode::NOT_FOUND
+    );
 }
 
 #[tokio::test]

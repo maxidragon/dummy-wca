@@ -10,8 +10,89 @@
 //!
 //! Codes work the same way: `code-<WCA ID>` grants every scope, and
 //! `code-<WCA ID>-<scopes>` (what the authorize page sends back) only those.
+//! A code asked for with PKCE also carries its challenge:
+//! `code-<WCA ID>-<scopes>-<method>-<challenge>`.
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use chrono::Utc;
+use sha2::{Digest, Sha256};
+
+/// The WCA staging seed's confidential client, which must send its secret.
+pub const CONFIDENTIAL_CLIENT_ID: &str = "example-application-id";
+/// The WCA staging seed's public client (for apps that can't keep a secret,
+/// like TNoodle), which may leave the secret out and use PKCE instead.
+pub const PUBLIC_CLIENT_ID: &str = "example-application-id-public";
+/// Both clients' secret, as in the WCA staging seed.
+pub const CLIENT_SECRET: &str = "example-secret";
+
+/// Doorkeeper's default `pkce_code_challenge_methods`, which the WCA keeps.
+pub const CODE_CHALLENGE_METHODS: [&str; 2] = ["plain", "S256"];
+
+/// Whether the client exists, for the authorize page.
+pub fn is_client(client_id: &str) -> bool {
+    client_id == CONFIDENTIAL_CLIENT_ID || client_id == PUBLIC_CLIENT_ID
+}
+
+/// Doorkeeper's `by_uid_and_secret`: a public client may leave its secret
+/// out, but a secret that is sent must be right.
+pub fn client_authenticates(client_id: &str, secret: Option<&str>) -> bool {
+    let secret = secret.filter(|secret| !secret.is_empty());
+    match client_id {
+        CONFIDENTIAL_CLIENT_ID => secret == Some(CLIENT_SECRET),
+        PUBLIC_CLIENT_ID => secret.is_none_or(|secret| secret == CLIENT_SECRET),
+        _ => false,
+    }
+}
+
+/// A PKCE code challenge (RFC 7636).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Challenge<'a> {
+    /// One of [`CODE_CHALLENGE_METHODS`].
+    pub method: &'a str,
+    pub value: &'a str,
+}
+
+/// What an authorization code grants.
+#[derive(Debug, PartialEq, Eq)]
+pub struct CodeGrant<'a> {
+    pub wca_id: &'a str,
+    pub scopes: Vec<&'a str>,
+    pub challenge: Option<Challenge<'a>>,
+}
+
+impl CodeGrant<'_> {
+    /// Doorkeeper's `validate_code_verifier`: a verifier must answer the
+    /// challenge, so one sent for a code without a challenge fails too.
+    pub fn verifier_matches(&self, verifier: &str) -> bool {
+        match self.challenge {
+            Some(Challenge {
+                method: "S256",
+                value,
+            }) => value == s256(verifier),
+            Some(Challenge {
+                method: "plain",
+                value,
+            }) => value == verifier,
+            _ => false,
+        }
+    }
+}
+
+/// Doorkeeper's `generate_code_challenge`: base64url of the verifier's
+/// SHA-256, without padding.
+fn s256(verifier: &str) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
+/// What the authorize page appends to `code-<WCA ID>`.
+pub fn code_suffix(scopes: &[&str], challenge: Option<Challenge>) -> String {
+    let mut suffix = format!("-{}", scopes.join(","));
+    if let Some(challenge) = challenge {
+        suffix.push_str(&format!("-{}-{}", challenge.method, challenge.value));
+    }
+    suffix
+}
 
 /// The scopes the WCA's OAuth server knows: `public` by default, the rest
 /// on request.
@@ -71,15 +152,31 @@ fn caller_at(token: &str, now: i64) -> Option<Caller<'_>> {
     })
 }
 
-/// The WCA ID and scopes an authorization code or refresh token grants.
-/// Both look like `<kind>-<WCA ID>[-<scopes>]`; without scopes, every scope.
-pub fn grant(code: &str) -> Option<(&str, Vec<&str>)> {
+/// What an authorization code grants, or `None` if it is malformed.
+/// Without scopes, it grants every scope.
+pub fn code_grant(code: &str) -> Option<CodeGrant<'_>> {
     let (_, rest) = code.split_once('-')?;
-    let (wca_id, scopes) = match rest.split_once('-') {
-        Some((wca_id, scopes)) => (wca_id, parse_scopes(scopes)?),
-        None => (rest, SCOPES.to_vec()),
+    // The challenge comes last, as it may hold dashes itself.
+    let mut parts = rest.splitn(4, '-');
+    let wca_id = parts.next().filter(|wca_id| !wca_id.is_empty())?;
+    let scopes = match parts.next() {
+        Some(scopes) => parse_scopes(scopes)?,
+        None => SCOPES.to_vec(),
     };
-    (!wca_id.is_empty()).then_some((wca_id, scopes))
+    let challenge = match (parts.next(), parts.next()) {
+        (None, _) => None,
+        (Some(method), Some(value))
+            if CODE_CHALLENGE_METHODS.contains(&method) && !value.is_empty() =>
+        {
+            Some(Challenge { method, value })
+        }
+        _ => return None,
+    };
+    Some(CodeGrant {
+        wca_id,
+        scopes,
+        challenge,
+    })
 }
 
 /// Scopes separated by commas or spaces. Unknown scopes are refused, as the
@@ -110,11 +207,18 @@ pub fn refresh_token(wca_id: &str, scopes: &[&str], nonce: u64) -> String {
     format!("refresh-{}-{}-{}", wca_id, scopes.join(","), nonce)
 }
 
-/// A refresh token's grant, without its nonce.
+/// A refresh token's WCA ID and scopes, without its nonce.
 pub fn refresh_grant(token: &str) -> Option<(&str, Vec<&str>)> {
     let (without_nonce, nonce) = token.rsplit_once('-')?;
     nonce.parse::<u64>().ok()?;
-    grant(without_nonce)
+    match code_grant(without_nonce)? {
+        CodeGrant {
+            wca_id,
+            scopes,
+            challenge: None,
+        } => Some((wca_id, scopes)),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -147,12 +251,64 @@ mod tests {
 
     #[test]
     fn codes_grant_their_scopes_or_all() {
-        let (wca_id, scopes) = grant("code-2012VAQR01").unwrap();
-        assert_eq!(wca_id, "2012VAQR01");
-        assert_eq!(scopes, SCOPES.to_vec());
-        let (_, scopes) = grant("code-2012VAQR01-public,manage_registrations").unwrap();
-        assert_eq!(scopes, ["public", "manage_registrations"]);
-        assert_eq!(grant("code-2012VAQR01-everything"), None);
+        let grant = code_grant("code-2012VAQR01").unwrap();
+        assert_eq!(grant.wca_id, "2012VAQR01");
+        assert_eq!(grant.scopes, SCOPES.to_vec());
+        assert_eq!(grant.challenge, None);
+        let grant = code_grant("code-2012VAQR01-public,manage_registrations").unwrap();
+        assert_eq!(grant.scopes, ["public", "manage_registrations"]);
+        assert_eq!(code_grant("code-2012VAQR01-everything"), None);
+    }
+
+    // S256_CHALLENGE is base64url(SHA-256(VERIFIER)), worked out outside Rust.
+    const VERIFIER: &str = "dBjftJeZ4CVP-mJ92K1qW-g7wEnzyW2eGO40wjPsUEo";
+    const S256_CHALLENGE: &str = "qzQb9tSSnS0U71xfMidDXx1f5DWgBrv-BVcnFnWJC8E";
+
+    #[test]
+    fn codes_carry_their_challenge_dashes_and_all() {
+        let challenge = Challenge {
+            method: "S256",
+            value: S256_CHALLENGE,
+        };
+        let code = format!(
+            "code-2012VAQR01{}",
+            code_suffix(&["public"], Some(challenge))
+        );
+        let grant = code_grant(&code).unwrap();
+        assert_eq!(grant.scopes, ["public"]);
+        assert_eq!(grant.challenge, Some(challenge));
+        assert_eq!(code_grant("code-2012VAQR01-public-sha512-abc"), None);
+        assert_eq!(code_grant("code-2012VAQR01-public-plain-"), None);
+        assert_eq!(code_grant("code-2012VAQR01-public-plain"), None);
+    }
+
+    #[test]
+    fn verifiers_must_answer_the_challenge_like_doorkeeper() {
+        let code = format!("code-2012VAQR01-public-S256-{}", S256_CHALLENGE);
+        let s256 = code_grant(&code).unwrap();
+        assert!(s256.verifier_matches(VERIFIER));
+        assert!(!s256.verifier_matches(S256_CHALLENGE));
+        let code = format!("code-2012VAQR01-public-plain-{}", VERIFIER);
+        let plain = code_grant(&code).unwrap();
+        assert!(plain.verifier_matches(VERIFIER));
+        assert!(!plain.verifier_matches("something-else"));
+        let without = code_grant("code-2012VAQR01-public").unwrap();
+        assert!(!without.verifier_matches(VERIFIER));
+    }
+
+    #[test]
+    fn only_the_public_client_may_leave_its_secret_out() {
+        assert!(client_authenticates(
+            CONFIDENTIAL_CLIENT_ID,
+            Some(CLIENT_SECRET)
+        ));
+        assert!(!client_authenticates(CONFIDENTIAL_CLIENT_ID, None));
+        assert!(!client_authenticates(CONFIDENTIAL_CLIENT_ID, Some("")));
+        assert!(client_authenticates(PUBLIC_CLIENT_ID, None));
+        assert!(client_authenticates(PUBLIC_CLIENT_ID, Some("")));
+        assert!(client_authenticates(PUBLIC_CLIENT_ID, Some(CLIENT_SECRET)));
+        assert!(!client_authenticates(PUBLIC_CLIENT_ID, Some("wrong")));
+        assert!(!client_authenticates("someone-else", Some(CLIENT_SECRET)));
     }
 
     #[test]
@@ -160,5 +316,6 @@ mod tests {
         let token = refresh_token("2012VAQR01", &["public"], 7);
         assert_eq!(refresh_grant(&token), Some(("2012VAQR01", vec!["public"])));
         assert_eq!(refresh_grant("refresh-2012VAQR01-public"), None);
+        assert_eq!(refresh_grant("refresh-2012VAQR01-public-plain-abc-7"), None);
     }
 }

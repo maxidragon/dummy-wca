@@ -8,6 +8,11 @@ pub struct OauthRequestOptions {
     pub response_type: String,
     pub client_id: String,
     pub state: Option<String>,
+    /// PKCE (RFC 7636): the challenge the token request's `code_verifier`
+    /// must answer.
+    pub code_challenge: Option<String>,
+    /// `plain` or `S256`; required with a `code_challenge`.
+    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -18,9 +23,12 @@ pub struct OauthTokenRequestOptions {
     /// For `grant_type=refresh_token`.
     pub refresh_token: Option<String>,
     pub client_id: String,
-    pub client_secret: String,
+    /// Optional for the public client, which has no secret to keep.
+    pub client_secret: Option<String>,
     pub redirect_uri: Option<String>,
     pub grant_type: String,
+    /// PKCE (RFC 7636): answers the code's `code_challenge`.
+    pub code_verifier: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

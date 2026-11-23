@@ -77,7 +77,7 @@ impl IntoResponse for AuthorizeTemplate {
 pub async fn code_handler(
     params: Query<OauthRequestOptions>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    if params.client_id != "example-application-id" {
+    if !auth::is_client(&params.client_id) {
         return Err(error(StatusCode::NOT_FOUND, "Invalid client_id"));
     }
     let Some(scopes) = auth::parse_scopes(params.scope.as_deref().unwrap_or_default()) else {
@@ -86,13 +86,42 @@ pub async fn code_handler(
             "The requested scope is invalid, unknown, or malformed.",
         ));
     };
+    let challenge = code_challenge(&params)?;
     let template = AuthorizeTemplate {
         redirect_uri: params.redirect_uri.clone(),
         state: params.state.clone().unwrap_or_default(),
-        code_suffix: format!("-{}", scopes.join(",")),
+        code_suffix: auth::code_suffix(&scopes, challenge),
         accounts: &ACCOUNTS,
     };
     Ok(template.into_response())
+}
+
+/// The PKCE challenge the code should carry. Like Doorkeeper, a challenge
+/// needs a method it supports, and a method alone is ignored.
+fn code_challenge(
+    params: &OauthRequestOptions,
+) -> Result<Option<auth::Challenge<'_>>, (StatusCode, Json<Value>)> {
+    let Some(value) = params
+        .code_challenge
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(None);
+    };
+    match params
+        .code_challenge_method
+        .as_deref()
+        .filter(|method| auth::CODE_CHALLENGE_METHODS.contains(method))
+    {
+        Some(method) => Ok(Some(auth::Challenge { method, value })),
+        None => Err(oauth_error(
+            "invalid_code_challenge_method",
+            &format!(
+                "The code_challenge_method must be one of {}.",
+                auth::CODE_CHALLENGE_METHODS.join(", ")
+            ),
+        )),
+    }
 }
 
 /// The WCA takes both: FKMTime sends JSON, and OAuth clients send a form.
@@ -131,7 +160,7 @@ pub async fn get_token_handler(
     request: Request,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let body = token_request(request).await?;
-    if body.client_id != "example-application-id" || body.client_secret != "example-secret" {
+    if !auth::client_authenticates(&body.client_id, body.client_secret.as_deref()) {
         return Err(error(StatusCode::NOT_FOUND, "Invalid data"));
     }
     let invalid_grant = || {
@@ -141,11 +170,25 @@ pub async fn get_token_handler(
         )
     };
     let (wca_id, scopes) = match body.grant_type.as_str() {
-        "authorization_code" => body
-            .code
-            .as_deref()
-            .and_then(auth::grant)
-            .ok_or_else(invalid_grant)?,
+        "authorization_code" => {
+            let grant = body
+                .code
+                .as_deref()
+                .and_then(auth::code_grant)
+                .ok_or_else(invalid_grant)?;
+            // Doorkeeper asks for a missing verifier before checking one.
+            match body.code_verifier.as_deref().filter(|v| !v.is_empty()) {
+                None if grant.challenge.is_some() => {
+                    return Err(oauth_error(
+                        "invalid_request",
+                        "Missing required parameter: code_verifier.",
+                    ))
+                }
+                Some(verifier) if !grant.verifier_matches(verifier) => return Err(invalid_grant()),
+                _ => {}
+            }
+            (grant.wca_id, grant.scopes)
+        }
         "refresh_token" => {
             let token = body.refresh_token.as_deref().unwrap_or_default();
             let grant = auth::refresh_grant(token).ok_or_else(invalid_grant)?;

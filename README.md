@@ -89,11 +89,18 @@ Returns the current user information. Requires the `Authorization` header to be 
 
 Redirects to the page that asks to choose the user. Choosing one sends the browser to `redirect_uri` with `code`, and with `state` if the request had one. The code carries the requested `scope` (`public` if none); an unknown scope gives 400, as on the WCA.
 
+There are two clients, as in the WCA's staging seed: `example-application-id` (confidential) and `example-application-id-public` (public, for apps that can't keep a secret).
+
+Either client may use PKCE: send `code_challenge` with `code_challenge_method` `plain` or `S256`, and the code carries the challenge. As in the WCA's Doorkeeper, a challenge without one of those methods gives 400 `invalid_code_challenge_method`, and a method without a challenge is ignored.
+
 ### `POST /oauth/token`
 
 Takes a JSON or form-encoded body, and returns `access_token`, `refresh_token`, `expires_in`, `scope` and `created_at`, like the WCA's Doorkeeper.
 
+`client_id` is one of the two clients above, and `client_secret` is `example-secret`. The public client may leave the secret out, but one it sends must be right.
+
 - `grant_type=authorization_code` with `code`. A code from the authorize page grants the scopes that were requested; a hand-written `code-<WCA ID>` grants every scope.
+- A code asked for with a `code_challenge` needs the matching `code_verifier` (for `S256`, the challenge is the verifier's SHA-256 in base64url without padding). Without one it gives 400 `invalid_request`; a wrong one gives 400 `invalid_grant`, and so does a `code_verifier` sent with a code that has no challenge, as on the WCA. dummy-wca's codes hold their challenge in plain sight (`code-<WCA ID>-<scopes>-<method>-<challenge>`), so this tests a client's PKCE, not the server's security.
 - `grant_type=refresh_token` with `refresh_token` gives a new pair with the same scopes. Each refresh token works once; a second use gives 400 `invalid_grant`.
 
 Tokens last `TOKEN_LIFETIME_SECONDS` (default 7200, the WCA's 2 hours); after that they get 401. Set it lower to test refreshing.
