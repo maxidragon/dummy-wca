@@ -1,6 +1,7 @@
 //! The WCA's `/api/v1` endpoints. They answer errors as `{"error": ...}`,
 //! need a signed-in user unless they say otherwise, and are rate limited.
 
+pub mod persons;
 pub mod registrations;
 pub mod scoretakers;
 
@@ -164,6 +165,8 @@ pub async fn rate_limit(
 fn controller(path: &str) -> &'static str {
     if path.starts_with("/api/v1/registrations") {
         "registrations"
+    } else if path.starts_with("/api/v1/persons") {
+        "persons"
     } else if path.contains("/live/") {
         "live"
     } else if path.contains("/scoretakers") {

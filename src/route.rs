@@ -19,6 +19,7 @@ use crate::v1;
 /// The WCA's `/api/v1` endpoints, rate limited like there.
 fn v1_router(state: SharedState) -> Router<SharedState> {
     Router::new()
+        .route("/api/v1/persons/:wca_id", get(v1::persons::show))
         .route(
             "/api/v1/registrations/:id",
             patch(v1::registrations::update),
