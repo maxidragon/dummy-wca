@@ -131,7 +131,18 @@ Returns `{ "result": [...] }` with the users whose name or WCA ID contains the q
 
 ### `/api/v1` endpoints
 
-Like on the WCA, these need a signed-in user unless they say otherwise, answer errors as `{"error": ...}` (401 `Please log in` without a valid token), and serve the generated competitions only. Each controller (registrations, scoretakers, live results) takes `API_RATE_LIMIT_PER_MINUTE` requests per minute per client IP (default 60, as on the WCA; 0 turns it off); after that it answers 429 with an empty body until the minute is over. The WCA doesn't limit its own internal network; dummy-wca limits everyone, so a client can test its 429 handling.
+Like on the WCA, these need a signed-in user unless they say otherwise, answer errors as `{"error": ...}` (401 `Please log in` without a valid token), and serve the generated competitions only. Each controller (persons, registrations, scoretakers, live results) takes `API_RATE_LIMIT_PER_MINUTE` requests per minute per client IP (default 60, as on the WCA; 0 turns it off); after that it answers 429 with an empty body until the minute is over. The WCA doesn't limit its own internal network; dummy-wca limits everyone, so a client can test its 429 handling.
+
+### `GET /api/v1/persons/:wca_id`
+
+A person's public profile, as on the WCA: `wca_id`, `name`, `gender`, `url`, `country_iso2`, `delegate_status`, `teams` (`[{"friendly_id", "status"}]`, `status` being `leader`, `senior_member` or `member`, and null for the board), `avatar` (`url`, `thumb_url`, `is_default`), `competition_count`, `medals`, `records`, `ranks_by_event` (official events with a single, each `{"single", "average"}` of `{best, world_rank, continent_rank, country_rank}`), `event_ids_with_results`, `completed_solves_count`, `championship_podium_results` and `previous_persons`. Public, no token needed. Unlike the rest of `/api/v1`, it serves the snapshot persons as well as the generated people, from the same data as `GET /api/v0/persons/:wca_id`, and matches the WCA ID regardless of case.
+
+dummy-wca has no results, so the parts the WCA works out from them are empty or approximate:
+- `completed_solves_count` is 0, `previous_persons` is empty, and `championship_podium_results` has an empty `world`, `continental`, `greater_china` and `national`.
+- `event_ids_with_results` lists the events the person has a personal record in, in the WCA's event order, with retired events last. The WCA also lists events where the person never had a success.
+- Generated people have no personal records, so their `ranks_by_event` is empty, as in `/api/v0/persons`.
+
+An unknown WCA ID gives the WCA's 404: `{"error": "Couldn't find Person with [WHERE ...]", "data": {"model": "Person", "id": null}}`. The person results and records endpoints (`.../results`, `.../records`) aren't emulated.
 
 ### `PATCH /api/v1/registrations/:id`
 

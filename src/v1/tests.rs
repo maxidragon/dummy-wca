@@ -295,6 +295,8 @@ async fn v1_requests_are_rate_limited_per_controller() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = call(&app, Method::GET, "/api/v0/me", Some(DELEGATE), None).await;
     assert_eq!(status, StatusCode::OK);
+    let (status, _) = call(&app, Method::GET, "/api/v1/persons/2013KOSK01", None, None).await;
+    assert_eq!(status, StatusCode::OK);
 }
 
 #[tokio::test]
@@ -329,4 +331,104 @@ async fn created_competitions_get_their_own_registration_ids() {
     let (_, second) = call(&app, Method::GET, &uri("DummyCubingOpen2031"), None, None).await;
     let first = ids(&first);
     assert!(ids(&second).iter().all(|id| !first.contains(id)));
+}
+
+async fn v1_person(app: &Router, wca_id: &str) -> (StatusCode, Value) {
+    let uri = format!("/api/v1/persons/{}", wca_id);
+    call(app, Method::GET, &uri, None, None).await
+}
+
+#[tokio::test]
+async fn a_person_is_public_and_shaped_like_the_wcas_v1() {
+    let (status, person) = v1_person(&app(), "2013KOSK01").await;
+    assert_eq!(status, StatusCode::OK);
+    let mut keys: Vec<&str> = person
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        [
+            "avatar",
+            "championship_podium_results",
+            "competition_count",
+            "completed_solves_count",
+            "country_iso2",
+            "delegate_status",
+            "event_ids_with_results",
+            "gender",
+            "medals",
+            "name",
+            "previous_persons",
+            "ranks_by_event",
+            "records",
+            "teams",
+            "url",
+            "wca_id",
+        ]
+    );
+    assert_eq!(person["wca_id"], "2013KOSK01");
+    assert_eq!(
+        person["teams"],
+        json!([{ "friendly_id": "wst", "status": "senior_member" }])
+    );
+    let mut avatar: Vec<&String> = person["avatar"].as_object().unwrap().keys().collect();
+    avatar.sort_unstable();
+    assert_eq!(avatar, ["is_default", "thumb_url", "url"]);
+    assert_eq!(
+        person["ranks_by_event"]["333"]["single"]
+            .as_object()
+            .unwrap()
+            .len(),
+        4
+    );
+    assert_eq!(
+        person["championship_podium_results"],
+        json!({ "world": [], "continental": [], "greater_china": [], "national": [] })
+    );
+    assert_eq!(person["previous_persons"], json!([]));
+}
+
+#[tokio::test]
+async fn a_persons_events_follow_the_wca_order_and_ranks_only_official_ones() {
+    let (_, person) = v1_person(&app(), "2013ROGA02").await;
+    let events = person["event_ids_with_results"].as_array().unwrap();
+    assert_eq!(events.first().unwrap(), "333");
+    assert_eq!(events[1], "222");
+    assert_eq!(events.last().unwrap(), "333ft", "retired events come last");
+    assert!(person["ranks_by_event"]["333"].is_object());
+    assert!(person["ranks_by_event"].get("333ft").is_none());
+    assert_eq!(person["delegate_status"], "regional_delegate");
+}
+
+#[tokio::test]
+async fn generated_people_have_a_person_page_too() {
+    let app = app();
+    let (status, person) = v1_person(&app, "2012vaqr01").await;
+    assert_eq!(status, StatusCode::OK, "WCA IDs match regardless of case");
+    assert_eq!(person["wca_id"], "2012VAQR01");
+    assert_eq!(person["delegate_status"], "delegate");
+    assert_eq!(person["avatar"]["is_default"], true);
+
+    let (_, admin) = v1_person(&app, "2011ULQA01").await;
+    assert_eq!(
+        admin["teams"],
+        json!([{ "friendly_id": "wst", "status": "member" }])
+    );
+}
+
+#[tokio::test]
+async fn an_unknown_person_gives_the_wcas_404() {
+    let (status, body) = v1_person(&app(), "1000AAAA01").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        body,
+        json!({
+            "error": "Couldn't find Person with [WHERE `persons`.`sub_id` = ? AND `persons`.`wca_id` = ?]",
+            "data": { "model": "Person", "id": null },
+        })
+    );
 }

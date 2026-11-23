@@ -323,16 +323,22 @@ pub async fn get_person_handler(
     State(state): State<SharedState>,
     Path(wca_id): Path<String>,
 ) -> ApiResult {
+    person_entry(&state, &wca_id)
+        .map(|entry| Json(entry).into_response())
+        .ok_or_else(|| error(StatusCode::NOT_FOUND, "Person not found"))
+}
+
+/// A person in the `/api/v0/persons/:wca_id` shape, snapshot or generated,
+/// matching the WCA ID regardless of case.
+pub fn person_entry(state: &SharedState, wca_id: &str) -> Option<Value> {
     snapshot_persons()
         .into_iter()
-        .chain(generated_persons(&state))
+        .chain(generated_persons(state))
         .find(|entry| {
             entry["person"]["wca_id"]
                 .as_str()
-                .is_some_and(|id| id.eq_ignore_ascii_case(&wca_id))
+                .is_some_and(|id| id.eq_ignore_ascii_case(wca_id))
         })
-        .map(|entry| Json(entry).into_response())
-        .ok_or_else(|| error(StatusCode::NOT_FOUND, "Person not found"))
 }
 
 /// Like the WCA, `start` keeps competitions that end on or after it and `end`
